@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+	<bean id="processEngine" class="com.bearingpoint.infonova.jenkins.processengine.JenkinsProcessEngine" factory-method="getProcessEngine" />
+	
+	<bean id="runtimeService" factory-bean="processEngine" factory-method="getRuntimeService"></bean>
+	
+	<bean id="taskService" factory-bean="processEngine" factory-method="getTaskService"></bean>
+	
+	<bean id="repositoryService" factory-bean="processEngine" factory-method="getRepositoryService" />
+	
+<!-- 	<bean class="com.bearingpoint.infonova.jenkins.test.common.WorkflowDeploymentProvider"> -->
+<!-- 		<property name="path" value="com/bearingpoint/infonova/jenkins/builder/process-callactivity.bpmn20.xml" /> -->
+<!-- 	</bean> -->
+
+</beans>

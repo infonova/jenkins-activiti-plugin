@@ -1,0 +1,318 @@
+@charset "utf-8";
+
+/*////////////////////////////////reset styles//////////////////////////////////////////*/
+* {
+	vertical-align: baseline;
+	font-weight: inherit;
+	font-family: inherit;
+	font-style: inherit;
+	outline: 0;
+	padding: 0;
+	margin: 0;
+	color: #666666;
+}
+
+/*///////////////////////////////overall design////////////////////////////////////////////////////////*/
+#projectname {
+	text-decoration: none;
+	font-size: 17pt;
+	color: #295A85;
+}
+
+#workflowdropdown {
+	background: url("../image/select_gray.png") no-repeat scroll right
+		center #DDDDDD;
+	border: 1px none;
+	float: right;
+	font-size: 15px;
+	overflow: hidden;
+	width: 200px;
+}
+
+#workflowdropdown>select {
+	background: none repeat scroll 0 0 transparent;
+	width: 220px;
+}
+
+#builddropdown {
+	margin-top: 10px;
+	background: url("../image/select_white.png") no-repeat scroll right
+		center white;
+	border: 1px none;
+	float: right;
+	font-size: 15px;
+	overflow: hidden;
+	width: 221px;
+}
+
+.success {
+	color: green;
+}
+
+.failure {
+	color: red;
+}
+
+.pending {
+	
+}
+
+.running {
+	
+}
+
+#dialogwrapper {
+	display: none;
+}
+
+.dialogheader {
+	font-size: 15px;
+	padding-left: 2px;
+}
+
+#builddropdown>select {
+	background: none repeat scroll 0 0 transparent;
+	width: 240px;
+}
+
+#displayedBuildNr {
+	font-size: 9pt;
+	padding-left: 2px;
+	text-decoration: none;
+}
+
+#errors {
+	padding-top: 3%;
+}
+
+#errors>a {
+	text-decoration: none;
+}
+
+h1,h2,h3,h4 {
+	margin: 10px 0px;
+}
+
+h1 {
+	color: #1A2A44;
+	font-size: 22pt;
+}
+
+h2 {
+	color: #295A85;
+	font-size: 17pt;
+}
+
+h3 {
+	color: #3A3A3A;
+	font-size: 12pt;
+}
+
+h4 {
+	color: #1a2a44;
+	font-size: 11pt;
+}
+
+a {
+	text-decoration: none;
+	outline: none;
+	color: #B3B3B3;
+}
+
+a:hover {
+	text-decoration: none;
+	outline: none;
+	color: #B3B3B3;
+}
+
+a:link,a:active {
+	color: #B3B3B3;
+}
+
+img {
+	border: none;
+}
+
+/*///////////////////////////////layout////////////////////////////////////////////////////////*/
+#contentwrapper {
+	margin: 35px 15px 0px;
+	padding: 0px;
+	font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+	font-size: small;
+	line-height: 13pt;
+	overflow-x: hidden;
+	/* Styles scrollbar for Interner Explorer */
+	scrollbar-face-color: #d4d4d4;
+	scrollbar-base-color: #EBF5FF;
+	scrollbar-arrow-color: #546376;
+	scrollbar-track-color: #DfDBDf;
+	scrollbar-shadow-color: #A5A5A5;
+	scrollbar-highlight-color: #A5A5A5;
+	scrollbar-3dlight-color: #E5E5E5;
+	scrollbar-darkshadow-color: #E5E5E5;
+	margin: 0 auto;
+	min-width: 780px;
+	max-width: 1900px;
+	position: relative;
+}
+
+#processmonitorheader {
+	margin-bottom: 30px;
+	padding-left: 20px;
+}
+
+#content {
+	background-color: #f5f5f5;
+	border: 1px solid #CCCCCC;
+	padding: 20px;
+	-moz-border-radius: 6px;
+	-webkit-border-radius: 6px;
+	clear: both;
+	position: relative;
+}
+
+.processDiagrams {
+	padding: 20px 10px;
+	overflow: hidden;
+	height: 100%;
+}
+
+#diagram-image {
+	margin: 40px 0px;
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+#diagramimage {
+	overflow: auto;
+}
+
+.complete {
+	width: 100px;
+	height: 20px;
+}
+
+/*//////////////////////////////////////TABS CLASSES///////////////////////////////////////////*/
+#tabs {
+	background: none;
+	border: none;
+}
+
+.tabs {
+	background: none;
+	border: none;
+	margin: 0;
+	padding: 10px 5px 1px 5px;
+	zoom: 1;
+	float: left;
+	margin-left: 15px;
+}
+
+.tabs:after {
+	display: block;
+	clear: both;
+	content: " ";
+}
+
+.tabs li {
+	list-style-type: none;
+	float: left;
+	margin: 0 1px 0 0;
+	padding-left: 5px;
+	border: none;
+	background: none;
+	display: inline;
+}
+
+.tabs li a:hover { /* color:#2B5E89;*/
+	color: #3A3A3A;
+}
+
+.tabs a {
+	display: block;
+	position: relative;
+	/*top: 1px;*/
+	/*border: 1px solid #ccc;*/
+	/*border-bottom: 0;*/
+	border: none;
+	z-index: 2;
+	padding: 2px 9px 3px;
+	text-decoration: none;
+	white-space: nowrap;
+	font-size: 11pt;
+}
+
+.tabs a:focus,.tabs a:active {
+	outline: none;
+}
+
+.tabs a:hover,.tabs a:focus,.tabs a:active { /*background: #fff;*/
+	cursor: pointer;
+	color: #2B5E89;
+}
+
+.tabs li.ui-tabs-paging-next {
+	float: right !important;
+}
+
+.tabs li.ui-tabs-paging-prev,.tabs li.ui-tabs-paging-next {
+	height: 34px;
+	display: block;
+	border: none;
+}
+
+.tabs li.ui-tabs-paging-next a,.tabs li.ui-tabs-paging-prev a {
+	background-position: 0 -35px;
+	background-repeat: no-repeat;
+}
+
+.tabs li.ui-tabs-paging-next a:hover,.tabs li.ui-tabs-paging-prev a:hover
+	{
+	background-position: 0 0;
+}
+
+.tabs li.ui-tabs-paging-next a {
+	background-image: url(nexttab.gif);
+}
+
+.tabs li.ui-tabs-paging-prev a {
+	background-image: url(prevtab.gif);
+}
+
+.tabs li.ui-tabs-paging-prev a,.tabs li.ui-tabs-paging-next a {
+	display: block;
+	position: relative;
+	top: 1px;
+	border: 0;
+	z-index: 2;
+	/*padding: 0; /* color: #444; */
+	text-decoration: none;
+	/*background: transparent !important;*/
+	cursor: pointer;
+	padding: 15px 17px;
+	text-indent: -9999px;
+}
+
+/*//////////////////////////////////////DIAGRAM CLASSES///////////////////////////////////////////*/
+#diagramimagepan {
+	margin: auto;
+	height: auto;
+}
+
+/*////////////////////////////////////CLEARFIX METHOD//////////////////////////////////////////////*/
+/* new clearfix */
+.clearfix:after {
+	visibility: hidden;
+	display: block;
+	font-size: 0;
+	content: " ";
+	clear: both;
+	height: 0;
+}
+
+* html .clearfix {
+	zoom: 1;
+} /* IE6 */
+*:first-child+html .clearfix {
+	zoom: 1;
+} /* IE7 */

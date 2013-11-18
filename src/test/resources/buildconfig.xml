@@ -1,0 +1,178 @@
+<project>
+	<actions />
+	<description>
+		Löscht die MSSQL DB und spielt install.sql ein.
+
+		<br />
+		<br />
+
+		<h3>Anmerkung:</h3>
+
+		<ol>
+
+			<li>
+				Input Script Variablen können unter Linux nicht mit -v name="value" übergeben werden.
+
+				<br />
+				Siehe http://stackoverflow.com/questions/11668193/using-variables-in-sqlcmd-for-linux
+
+			</li>
+
+			<li>
+
+				Datenbank Hostname sowie Port sind in der odbc.ini Datei konfiguriert. Siehe ~/.odbc.ini
+
+			</li>
+
+		</ol>
+	</description>
+	<displayName>Easytax DB Deploy (MSSQL)</displayName>
+	<logRotator>
+		<daysToKeep>31</daysToKeep>
+		<numToKeep>-1</numToKeep>
+		<artifactDaysToKeep>-1</artifactDaysToKeep>
+		<artifactNumToKeep>2</artifactNumToKeep>
+	</logRotator>
+	<keepDependencies>false</keepDependencies>
+	<properties>
+		<hudson.model.ParametersDefinitionProperty>
+			<parameterDefinitions>
+				<hudson.model.StringParameterDefinition>
+					<name>DB_USERNAME</name>
+					<description />
+					<defaultValue>easytax</defaultValue>
+				</hudson.model.StringParameterDefinition>
+				<hudson.model.StringParameterDefinition>
+					<name>DB_PASSWORD</name>
+					<description />
+					<defaultValue>easytax</defaultValue>
+				</hudson.model.StringParameterDefinition>
+				<hudson.model.StringParameterDefinition>
+					<name>DB_SID</name>
+					<description />
+					<defaultValue />
+				</hudson.model.StringParameterDefinition>
+				<hudson.model.StringParameterDefinition>
+					<name>ADDRESS</name>
+					<description />
+					<defaultValue>Easytax_Default</defaultValue>
+				</hudson.model.StringParameterDefinition>
+				<hudson.model.BooleanParameterDefinition>
+					<name>REPORTING_CONFIGURATION</name>
+					<description>It creates the reporting configurations which are defined under
+						easytax-package/jenkins/reporting-configurations/ReportingConfigurations.properties</description>
+					<defaultValue>false</defaultValue>
+				</hudson.model.BooleanParameterDefinition>
+				<hudson.model.BooleanParameterDefinition>
+					<name>DEV_MODE</name>
+					<description>
+						Applies some development specific changes to the database like:
+						<ul>
+							<li>preparing users and roles.</li>
+						</ul>
+					</description>
+					<defaultValue>false</defaultValue>
+				</hudson.model.BooleanParameterDefinition>
+				<hudson.model.StringParameterDefinition>
+					<name>databaseVersion</name>
+					<description />
+					<defaultValue>10.13.0-SNAPSHOT</defaultValue>
+				</hudson.model.StringParameterDefinition>
+			</parameterDefinitions>
+		</hudson.model.ParametersDefinitionProperty>
+	</properties>
+	<scm class="hudson.scm.SubversionSCM">
+		<locations>
+			<hudson.scm.SubversionSCM_-ModuleLocation>
+				<remote>http://10.131.30.31/easytax/extras/easytax-internal-tools/trunk/src/main/sql/mssql</remote>
+				<local>scripts</local>
+			</hudson.scm.SubversionSCM_-ModuleLocation>
+			<hudson.scm.SubversionSCM_-ModuleLocation>
+				<remote>http://10.131.30.31/easytax/easytax-miscellaneous/trunk/gradle/unpack</remote>
+				<local>unpack</local>
+			</hudson.scm.SubversionSCM_-ModuleLocation>
+		</locations>
+		<excludedRegions />
+		<includedRegions />
+		<excludedUsers />
+		<excludedRevprop />
+		<excludedCommitMessages />
+		<workspaceUpdater class="hudson.scm.subversion.UpdateWithRevertUpdater" />
+		<ignoreDirPropChanges>false</ignoreDirPropChanges>
+	</scm>
+	<assignedNode>Deploy-Slave</assignedNode>
+	<canRoam>false</canRoam>
+	<disabled>false</disabled>
+	<blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+	<blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+	<jdk>JDK6</jdk>
+	<triggers class="vector" />
+	<concurrentBuild>false</concurrentBuild>
+	<builders>
+		<hudson.tasks.Shell>
+			<command># unpack the database scripts
+				cd $WORKSPACE/unpack
+				./gradlew clean unpackMssqlInstall -Pdestination=$WORKSPACE/install-script
+				-PdependencyVersion=$databaseVersion --refresh-dependencies</command>
+		</hudson.tasks.Shell>
+		<hudson.tasks.Shell>
+			<command>cd $WORKSPACE/scripts
+				echo :setvar DatabaseName $DB_SID > param_input.sql
+				cat $WORKSPACE/scripts/drop_mssql_cmd.sql >> param_input.sql
+				sqlcmd -U $DB_USERNAME -P $DB_PASSWORD -S "$ADDRESS" -D -i param_input.sql
+
+				cd $WORKSPACE/install-script
+				echo :setvar DatabaseName $DB_SID > param_input.sql
+				cat $WORKSPACE/install-script/install.sql >> param_input.sql
+				sqlcmd -U $DB_USERNAME -P $DB_PASSWORD -S "$ADDRESS" -D -i param_input.sql
+
+			</command>
+		</hudson.tasks.Shell>
+		<org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder>
+			<condition class="org.jenkins_ci.plugins.run_condition.core.BooleanCondition">
+				<token>$REPORTING_CONFIGURATION</token>
+			</condition>
+			<buildStep class="hudson.plugins.parameterizedtrigger.TriggerBuilder">
+				<configs>
+					<hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+						<configs>
+							<hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+								<properties>DB_USERNAME=$DB_USERNAME
+									DB_PASSWORD=$DB_PASSWORD
+									DB_URL=jdbc:sqlserver://10.1.30.92:1433;databaseName=$DB_SID
+									DB_DBMSSYSTEM=5</properties>
+							</hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+						</configs>
+						<projects>Easytax_Reporting_Configurations</projects>
+						<condition>ALWAYS</condition>
+						<triggerWithNoParameters>false</triggerWithNoParameters>
+						<buildAllNodesWithLabel>false</buildAllNodesWithLabel>
+					</hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+				</configs>
+			</buildStep>
+			<runner class="org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail" />
+		</org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder>
+		<org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder>
+			<condition class="org.jenkins_ci.plugins.run_condition.core.BooleanCondition">
+				<token>$DEV_MODE</token>
+			</condition>
+			<buildStep class="hudson.tasks.Shell">
+				<command>cd $WORKSPACE/scripts
+					echo :setvar DatabaseName $DB_SID > param_input.sql
+					cat $WORKSPACE/scripts/dev_mssql_cmd.sql >> param_input.sql
+					sqlcmd -U $DB_USERNAME -P $DB_PASSWORD -S "$ADDRESS" -D -i param_input.sql
+
+				</command>
+			</buildStep>
+			<runner class="org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail" />
+		</org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder>
+	</builders>
+	<publishers>
+		<hudson.plugins.logparser.LogParserPublisher>
+			<unstableOnWarning>true</unstableOnWarning>
+			<failBuildOnError>true</failBuildOnError>
+			<parsingRulesPath>/u01/hudson_ci/hudson/db_deploy.rules</parsingRulesPath>
+		</hudson.plugins.logparser.LogParserPublisher>
+	</publishers>
+	<buildWrappers />
+</project>

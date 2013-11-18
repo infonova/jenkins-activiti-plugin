@@ -1,0 +1,20 @@
+<jelly xmlns="jelly:core">
+<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/jquery-1.9.1.min.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/testcommon.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/callactivity.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/bind.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/prototype.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/behavior.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/yahoo-min.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/dom-min.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/event-min.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/connection-min.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/container-min.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/datasource-min.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/storage-min.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/hudson-behavior.js"></script>
+
+	<import file="src/main/resources/com/bearingpoint/infonova/jenkins/view/BuildPipelineView/main.jelly" inherit="true" />
+
+</jelly>
+

@@ -1,0 +1,18 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  
+  	<!-- ********************************** -->
+  	<!-- The project for process monitoring -->
+  	<!-- ********************************** -->
+	<f:entry title="${%Select project name}" field="projectName">
+		<select name="projectName">
+          	<j:forEach var="job" items="${it.relevantItems}">
+          		<f:option value="${job.name}">${job.name}</f:option>
+        	</j:forEach>
+        </select>  
+	</f:entry>
+	<f:entry title="${%Builds to display}" field="buildsToDisplay" clazz="number">
+		<f:select /> 
+	</f:entry>
+	
+</j:jelly>

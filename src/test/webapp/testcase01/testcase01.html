@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Testcase 01</title>
+<link rel="stylesheet" href="../css/qunit.css">
+
+<!-- CSS resources -->
+<link media="screen" type="text/css" href="../../../main/webapp/css/jenkins-activiti-plugin-main.css" rel="stylesheet" />
+<link media="screen" type="text/css" href="../../../main/webapp/css/jquery-ui.css" rel="stylesheet" />
+	
+<!-- Javascript resources -->
+<script type="text/javascript" src="../../../main/webapp/js/jquery-1.9.1.js"></script>
+<script type="text/javascript" src="../js/qunit.js"></script>
+<script type="text/javascript" src="../js/testcommon.js"></script>
+<script type="text/javascript" src="testcase01.js"></script>
+<script type="text/javascript" src="../../../main/webapp/js/jquery.maphilight.js"></script>
+<script type="text/javascript" src="../../../main/webapp/js/jquery-ui.js-1.10.2.js"></script>
+<script type="text/javascript" src="../../../main/webapp/js/jenkins-activiti-plugin.js"></script>
+
+</head>
+<body>
+	<div id="qunit"></div>
+	<div id="qunit-fixture"></div>
+
+	<div id="dialogwrapper"></div>
+
+	<div id="contentwrapper">
+
+		<!-- Root URL variable -->
+		<input id="rootURL" type="hidden" value="." />
+
+		<!-- Project name variable -->
+		<input id="projectName" type="hidden" value="testProject" />
+
+		<!-- Build number -->
+		<input id="buildNumber" type="hidden" value="1" />
+
+		<!-- Process definition id -->
+		<input id="processDefinitionId" type="hidden" value="diagram1" />
+
+		<div id="processmonitorheader">
+			<h1>Jenkins Process Viewer</h1>
+		</div>
+
+		<div id="tabs">
+
+			<ul class="tabs">
+				<li><a id="1" class="build" title="tabs-0"> Build 1</a></li>
+				<li><a id="2" class="build" title="tabs-0"> Build 2</a></li>
+				<li><a id="3" class="build" title="tabs-0"> Build 3</a></li> 
+			</ul>
+
+			<!-- Build Drop down -->
+			<div id="builddropdown">
+				<select>
+					<option id="1" class="build">Build 1</option>
+					<option id="2" class="build">Build 2</option>
+					<option id="3" class="build">Build 3</option>
+				</select>
+			</div>
+
+			<div id="content">
+				<div id="tabs-0">
+					<div>
+						<a id="projectname" href="localhost:8080/jenkins/job/testProject">testProject</a>
+						<a id="displayedBuildNr" href="localhost:8080/jenkins/job/testProject/1">(1)</a>
+
+						<!-- Workflow Drop down -->
+						<div id="workflowdropdown">
+							<select id="workflowselect">
+								<option name="workflow" class="success" id="1">workflow1</option>
+								<option name="workflow" class="success" id="2">workflow2</option>
+								<option name="workflow" class="success" id="3">workflow3</option>
+							</select>
+						</div>
+					</div>
+
+					<div id="errors"></div>
+
+					<div id="diagram-image">
+						<img id="diagram" src="" border="0" usemap="#map" class="map" />
+						<map name="map"></map>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+</body>
+</html>

@@ -1,0 +1,1 @@
+The testcase02 tests the javascript functionality which is used to switch between different builds.

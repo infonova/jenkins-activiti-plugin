@@ -1,0 +1,90 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="Content-Style-Type" content="text/css" />
+	<meta http-equiv="Content-Script-Type" content="text/javascript" />
+    <meta http-equiv="X-UA-Compatible" content="IE=100" />
+	<title>Jenkins Process Monitor</title>
+	<!-- TODO: use ${resURL} -->
+	<!-- CSS -->
+    <link media="screen" type="text/css" href="${rootURL}/plugin/jenkins-activiti-plugin/css/jenkins-activiti-plugin-main.css" rel="stylesheet" />
+    <link media="screen" type="text/css" href="${rootURL}/plugin/jenkins-activiti-plugin/css/jquery-ui.css" rel="stylesheet" />
+	
+	<!-- Javascript -->
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/jquery-1.9.1.min.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/jquery.maphilight.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/jenkins-activiti-dialogbuilder.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/jenkins-activiti-plugin.js"></script>
+	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/jquery-ui.js-1.10.2.js"></script>
+
+	<!-- Javascript Hook used to access server objects -->
+	<st:bind var="JenkinsActivitiPlugin.prototype.it" value="${it}"/>
+	
+	<div id="dialogwrapper"></div>
+	
+	<div id="contentwrapper">
+		
+		<!-- Root URL variable -->
+		<input id="rootURL" type="hidden" value="${rootURL}" />
+		
+		<!-- Project name variable -->
+		<input id="projectName" type="hidden" value="${it.projectName}" />
+		
+		<!-- Build number -->
+		<input id="buildNumber" type="hidden" value="${it.latestBuild.number}" />
+		
+		<!-- Process definition id -->
+		<input id="processDefinitionId" type="hidden" value="${it.getFirstProcessDefinitionId(it.latestBuild.number)}" />
+		
+		<div id="processmonitorheader">
+			<h1>Jenkins Process Viewer</h1>
+		</div>
+		<div id="tabs">
+		
+			<!-- Build number tabs -->
+			<ul class="tabs">
+				<j:forEach var="build" items="${it.getProjectBuilds(5)}">
+					<li>
+						<a id="${build.number}" class="build" href="#${build.number}" title="tabs-0">${build}</a>
+					</li>
+        		</j:forEach>
+			</ul>
+        		
+			<!-- Build Drop down -->
+			<div id="builddropdown">
+				<select>
+   					<j:forEach var="build" items="${it.projectBuilds}">
+   						<option id="${build.number}" class="build" href="#${build.number}">${build}</option>
+   					</j:forEach>
+   				</select>
+   			</div>
+			
+			<div id="content">
+				<div id="tabs-0">
+					<div>
+						<a id="projectname" href="${rootURL}/job/${it.projectName}">${it.projectName}</a>
+						<a id="displayedBuildNr" href="${rootURL}/job/${it.projectName}/${it.latestBuild.number}">(${it.latestBuild.number})</a>
+						
+						<!-- Workflow Drop down -->
+						<div id="workflowdropdown">
+							<select id="workflowselect">
+								<j:forEach var="action" items="${it.getProcessDefinitionIds(it.latestBuild.number)}">
+									<option name="workflow" class="${action.getWorkflowState()}" id="${action.processDescriptionId}">
+										${action.workflowName}
+									</option> 
+        						</j:forEach>
+        					</select>
+        				</div>
+					</div>
+					
+					<div id="errors"></div>
+
+					<div id="diagram-image">
+						<img id="diagram" src="" border="0" usemap="#map" class="map" />
+						<map name="map"></map>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+</j:jelly>
