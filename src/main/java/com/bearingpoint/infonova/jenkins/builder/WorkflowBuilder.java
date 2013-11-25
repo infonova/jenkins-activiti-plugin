@@ -15,6 +15,7 @@ import hudson.model.BuildListener;
 import hudson.model.TaskListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.remoting.Callable;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
@@ -65,351 +66,376 @@ import com.bearingpoint.infonova.jenkins.util.JenkinsUtils;
  */
 public class WorkflowBuilder extends Builder {
 
-	private final String pathToWorkflow;
+    private final String pathToWorkflow;
 
-	private static Logger logger = Logger.getLogger(WorkflowBuilder.class);
+    private static Logger logger = Logger.getLogger(WorkflowBuilder.class);
 
-	@DataBoundConstructor
-	public WorkflowBuilder(String pathToWorkflow) {
-		this.pathToWorkflow = pathToWorkflow;
-	}
+    @DataBoundConstructor
+    public WorkflowBuilder(String pathToWorkflow) {
+        this.pathToWorkflow = pathToWorkflow;
+    }
 
-	/**
-	 * We'll use this from the <tt>config.jelly</tt>.
-	 */
-	public String getPathToWorkflow() {
-		return pathToWorkflow;
-	}
+    /**
+     * We'll use this from the <tt>config.jelly</tt>.
+     */
+    public String getPathToWorkflow() {
+        return pathToWorkflow;
+    }
 
-	// TODO: set ActivitiWorkflowAction into the variable map
-	// each task should add the UI element instance to the variable map
-	@Override
-	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
+    // TODO: set ActivitiWorkflowAction into the variable map
+    // each task should add the UI element instance to the variable map
+    @Override
+    public boolean perform(final AbstractBuild<?, ?> build, final Launcher launcher, final BuildListener listener) {
 
-		final PrintStream logger = listener.getLogger();
+        // run on JENKINS master or slave
+        @SuppressWarnings("serial")
+        Callable<Boolean, Exception> call = new Callable<Boolean, Exception>() {
 
-		log(logger, "****************************");
-		log(logger, "Start activiti BPMN workflow");
-		log(logger, "****************************");
+            public Boolean call() throws Exception {
+                return performInternal(build, launcher, listener);
+            }
 
-		// get the BPMN XML file from the workspace
-		final FilePath diagram = getWorkflowDiagram(build.getWorkspace());
+        };
 
-		// get the process engine instances
-		ProcessEngine engine = JenkinsProcessEngine.getProcessEngine();
+        // run on JENKINS master
+        try {
+            return launcher.getChannel().call(call);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
 
-		String processId = null;
+    }
 
-		DestructionCallbacks callbacks = new DestructionCallbacks();
+    public boolean performInternal(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
 
-		try {
-			Assert.isTrue(StringUtils.endsWith(diagram.getName(), ".bpmn20.xml"),
-					ErrorCode.ACTIVITI04);
+        final PrintStream logger = listener.getLogger();
 
-			// deploy the BPMN process
-			log(logger, "deploy BPMN process: " + diagram.getRemote());
-			processId = ActivitiAccessor.deployProcess(engine, diagram);
+        log(logger, "****************************");
+        log(logger, "Start activiti BPMN workflow");
+        log(logger, "****************************");
 
-			addActions(build, processId, logger, callbacks);
+        // get the BPMN XML file from the workspace
+        final FilePath diagram = getWorkflowDiagram(build.getWorkspace());
 
-			Map<String, Object> variables = getEnvironments(build, listener);
-			ActivitiUtils.prepareDataAssociation(processId, variables.keySet());
+        // get the process engine instances
+        ProcessEngine engine = JenkinsProcessEngine.getProcessEngine();
 
-			// start the BPMN process
-			log(logger, "start BPMN process: " + diagram.getRemote());
-			RuntimeService runtimeService = engine.getRuntimeService();
-			runtimeService.startProcessInstanceById(processId, variables);
+        String processId = null;
 
-			waitForProcessFinalization(engine, build);
-			log(logger, "BPMN process finished");
-		} catch (JenkinsJobFailedException ex) {
-			log(logger, "delete aborted build BPMN process");
-			deleteAbortedBuildExecution(engine, processId, build);
-			
-			return false;
-		} catch (RuntimeException ex) {
-			// delete the BPMN process execution if the build is aborted
-			log(logger, "delete aborted build BPMN process");
-			deleteAbortedBuildExecution(engine, processId, build);
-			final String obj = ex.getMessage();
-			return handleException(build, ACTIVITI09, ex, listener, obj);
-		} catch (FileNotFoundException ex) {
-			final String obj = diagram.getRemote();
-			return handleException(build, ACTIVITI10, ex, listener, obj);
-		} catch (InterruptedException ex) {
-			log(logger, "delete aborted build BPMN process");
-			deleteAbortedBuildExecution(engine, processId, build);
-			
-			return false;
-		} finally {
-			callbacks.destroy();
-		}
+        DestructionCallbacks callbacks = new DestructionCallbacks();
 
-		return true;
-	}
+        try {
+            Assert.isTrue(StringUtils.endsWith(diagram.getName(), ".bpmn20.xml"), ErrorCode.ACTIVITI04);
 
-	// TODO: move to JenkinsUtils
-	private Map<String, Object> getEnvironments(AbstractBuild<?, ?> build, TaskListener listener) {
-		try {
-			Map<String, String> map = build.getBuildVariables();
-			Map<String, Object> variables = new HashMap<String, Object>();
-			for (String key : map.keySet()) {
-				variables.put(key, map.get(key));
-			}
-			return variables;
-		} catch (Exception e) {
-			throw new RuntimeException("error while  preparing environment map", e);
-		}
-	}
+            // deploy the BPMN process
+            log(logger, "deploy BPMN process: " + diagram.getRemote());
+            processId = ActivitiAccessor.deployProcess(engine, diagram);
 
-	/**
-	 * Handles the occurred exception.
-	 * 
-	 * @param build
-	 * @param errorCode
-	 * @param ex
-	 * @param listener
-	 * @param variables
-	 * @return boolean
-	 */
-	private boolean handleException(AbstractBuild<?, ?> build, ErrorCode errorCode, Exception ex,
-			BuildListener listener, Object... variables) {
+            addActions(build, processId, logger, callbacks);
 
-		File errorRef = JenkinsUtils.storeException(build, ex);
-		build.addAction(new ActivitiWorkflowErrorAction(errorCode, errorRef));
+            Map<String, Object> variables = getEnvironments(build, listener);
+            ActivitiUtils.prepareDataAssociation(processId, variables.keySet());
 
-		listener.fatalError(resolve(errorCode, variables));
+            // start the BPMN process
+            log(logger, "start BPMN process: " + diagram.getRemote());
+            RuntimeService runtimeService = engine.getRuntimeService();
+            runtimeService.startProcessInstanceById(processId, variables);
 
-		return false;
-	}
+            waitForProcessFinalization(engine, build);
+            log(logger, "BPMN process finished");
+        } catch (JenkinsJobFailedException ex) {
+            log(logger, "delete aborted build BPMN process");
+            deleteAbortedBuildExecution(engine, processId, build);
 
-	/**
-	 * Polls the workflow engine continuously till the process execution with
-	 * the given process description id has finished.
-	 * 
-	 * @param engine
-	 * @param processInstanceId
-	 */
-	// TODO: add timeout
-	// or complete running tasks when new execution starts
-	private void waitForProcessFinalization(ProcessEngine engine, AbstractBuild<?, ?> build)
-			throws InterruptedException {
+            return false;
+        } catch (RuntimeException ex) {
+            // delete the BPMN process execution if the build is aborted
+            log(logger, "delete aborted build BPMN process");
+            deleteAbortedBuildExecution(engine, processId, build);
+            final String obj = ex.getMessage();
+            return handleException(build, ACTIVITI09, ex, listener, obj);
+        } catch (FileNotFoundException ex) {
+            final String obj = diagram.getRemote();
+            return handleException(build, ACTIVITI10, ex, listener, obj);
+        } catch (InterruptedException ex) {
+            log(logger, "delete aborted build BPMN process");
+            deleteAbortedBuildExecution(engine, processId, build);
 
-		ActivitiWorkflowAction action = build.getAction(ActivitiWorkflowAction.class);
+            return false;
+        } finally {
+            callbacks.destroy();
+        }
 
-		final String processInstanceId = action.getProcessDescriptionId();
+        return true;
+    }
 
-		HistoricProcessInstance history = null;
-		// TODO: return failed task names
-		boolean hasFailedExecutions = false;
-		do {
-			logger.debug("wait for process finalization for process with id " + processInstanceId);
+    // TODO: move to JenkinsUtils
+    private Map<String, Object> getEnvironments(AbstractBuild<?, ?> build, TaskListener listener) {
+        try {
+            Map<String, String> map = build.getBuildVariables();
+            Map<String, Object> variables = new HashMap<String, Object>();
+            for (String key : map.keySet()) {
+                variables.put(key, map.get(key));
+            }
+            return variables;
+        } catch (Exception e) {
+            throw new RuntimeException("error while  preparing environment map", e);
+        }
+    }
 
-			waitFor(1000);
+    /**
+     * Handles the occurred exception.
+     * 
+     * @param build
+     * @param errorCode
+     * @param ex
+     * @param listener
+     * @param variables
+     * @return boolean
+     */
+    private boolean handleException(AbstractBuild<?, ?> build, ErrorCode errorCode, Exception ex,
+            BuildListener listener, Object... variables) {
 
-			for (String processId : action.getProcessIds()) {
-				if (hasFailedExecutions == false) {
-					hasFailedExecutions = ActivitiUtils.hasFailedExecutions(processId);
-				}
-			}
+        File errorRef = JenkinsUtils.storeException(build, ex);
+        build.addAction(new ActivitiWorkflowErrorAction(errorCode, errorRef));
 
-			history = ActivitiUtils.getProcessHistory(processInstanceId);
+        listener.fatalError(resolve(errorCode, variables));
 
-			// process history check
-			if (history != null && history.getEndTime() != null) {
-				return;
-			}
-			// failed executions check
-			if (hasFailedExecutions) {
-				throw new JenkinsJobFailedException();
-			}
+        return false;
+    }
 
-		} while (true);
-	}
+    /**
+     * Polls the workflow engine continuously till the process execution with
+     * the given process description id has finished.
+     * 
+     * @param engine
+     * @param processInstanceId
+     */
+    // TODO: add timeout
+    // or complete running tasks when new execution starts
+    private void waitForProcessFinalization(ProcessEngine engine, AbstractBuild<?, ?> build)
+            throws InterruptedException {
 
-	/**
-	 * Waits for the given amount of millis.
-	 * 
-	 * @param millis
-	 */
-	private static void waitFor(long millis) throws InterruptedException {
-		Thread.sleep(millis);
-	}
+        ActivitiWorkflowAction action = build.getAction(ActivitiWorkflowAction.class);
 
-	/**
-	 * Adds all persistent actions to the builder instance. <br />
-	 * Returns the TaskStateAction Observer instance in order to register it to
-	 * the Observable instance.
-	 * 
-	 * @param build
-	 * @param processDefinitionId
-	 * @return TaskStateAction
-	 */
-	private void addActions(AbstractBuild<?, ?> build, String processDefinitionId,
-			PrintStream logger, DestructionCallbacks callbacks) {
+        final String processInstanceId = action.getProcessDescriptionId();
 
-		File picture = ActivitiUtils.storeProcessDiagram(build, processDefinitionId);
+        HistoricProcessInstance history = null;
+        // TODO: return failed task names
+        boolean hasFailedExecutions = false;
+        do {
+            logger.debug("wait for process finalization for process with id " + processInstanceId);
 
-		// add element coordinates action
-		List<AbstractArea> elements = ActivitiUtils.getAreas(build, processDefinitionId);
+            waitFor(1000);
 
-		String workflowName = getWorkflowName();
+            for (String processId : action.getProcessIds()) {
+                if (hasFailedExecutions == false) {
+                    hasFailedExecutions = ActivitiUtils.hasFailedExecutions(processId);
+                }
+            }
 
-		ActivitiWorkflowAction action = new ActivitiWorkflowAction(workflowName,
-				processDefinitionId, picture, elements);
-		action.setLogger(logger);
-		build.addAction(action);
-		callbacks.addDestructionCallback(action);
-		callbacks.addDestructionCallback(new StoreMetadataCallback(build, action));
+            history = ActivitiUtils.getProcessHistory(processInstanceId);
 
-		// add activity properties
-		Map<String, Object> properties = new HashMap<String, Object>();
-		properties.put(JOB_NAME_PROPERTY, build.getProject().getName());
-		properties.put(BUILD_NUMBER_PROPERTY, build.getNumber());
+            // process history check
+            if (history != null && history.getEndTime() != null) {
+                return;
+            }
+            // failed executions check
+            if (hasFailedExecutions) {
+                throw new JenkinsJobFailedException();
+            }
 
-		ActivitiUtils.addActivityProperties(processDefinitionId, properties);
+        } while (true);
+    }
 
-		// add activity execution listeners
-		ActivitiUtils.addActivityListeners(processDefinitionId,
-				getExecutionListeners(action, callbacks));
-	}
+    /**
+     * Waits for the given amount of millis.
+     * 
+     * @param millis
+     */
+    private static void waitFor(long millis) throws InterruptedException {
+        Thread.sleep(millis);
+    }
 
-	// TODO: move to util package
-	private final class StoreMetadataCallback implements DestructionCallback {
+    /**
+     * Adds all persistent actions to the builder instance. <br />
+     * Returns the TaskStateAction Observer instance in order to register it to
+     * the Observable instance.
+     * 
+     * @param build
+     * @param processDefinitionId
+     * @return TaskStateAction
+     */
+    private void addActions(AbstractBuild<?, ?> build, String processDefinitionId, PrintStream logger,
+            DestructionCallbacks callbacks) {
 
-		private final AbstractBuild<?, ?> build;
-		private final ActivitiWorkflowAction action;
+        File picture = ActivitiUtils.storeProcessDiagram(build, processDefinitionId);
 
-		public StoreMetadataCallback(AbstractBuild<?, ?> build, ActivitiWorkflowAction action) {
-			this.build = build;
-			this.action = action;
-		}
+        // add element coordinates action
+        List<AbstractArea> elements = ActivitiUtils.getAreas(build, processDefinitionId);
 
-		public void destroy() {
-			Properties properties = action.getMetadata().getProperties();
+        String workflowName = getWorkflowName();
 
-			File file = new File(build.getRootDir(), "metadata.properties");
-			try {
-				properties.store(new FileOutputStream(file), "activity metadata");
-			} catch (IOException e) {
-				throw new RuntimeException("error while storing metadata", e);
-			}
-		}
+        ActivitiWorkflowAction action = new ActivitiWorkflowAction(workflowName, processDefinitionId, picture, elements);
+        action.setLogger(logger);
+        build.addAction(action);
+        callbacks.addDestructionCallback(action);
+        callbacks.addDestructionCallback(new StoreMetadataCallback(build, action));
 
-	}
+        // add activity properties
+        Map<String, Object> properties = new HashMap<String, Object>();
+        properties.put(JOB_NAME_PROPERTY, build.getProject().getName());
+        properties.put(BUILD_NUMBER_PROPERTY, build.getNumber());
 
-	/**
-	 * Returns the {@link NamedExecutionListener} instances to register. The
-	 * listeners adds the given {@link Observer} instance and are registered to
-	 * be destroyed by the end of the execution by the use of the
-	 * DestructionCallback mechanism.
-	 * 
-	 * @param observer
-	 * @param callbacks
-	 * @return ActivitiExecutionListener[]
-	 */
-	private NamedExecutionListener[] getExecutionListeners(Observer observer,
-			DestructionCallbacks callbacks) {
-		final String event1 = EVENTNAME_START;
-		final String event2 = EVENTNAME_END;
+        ActivitiUtils.addActivityProperties(processDefinitionId, properties);
 
-		ActivityStartListener startListener = new ActivityStartListener();
-		ActivityEndListener endListener = new ActivityEndListener();
+        // add activity execution listeners
+        ActivitiUtils.addActivityListeners(processDefinitionId, getExecutionListeners(action, callbacks));
+    }
 
-		startListener.addObserver(observer);
-		endListener.addObserver(observer);
+    // TODO: move to util package
+    private final class StoreMetadataCallback implements DestructionCallback {
 
-		List<NamedExecutionListener> list = new ArrayList<NamedExecutionListener>();
-		list.add(new NamedExecutionListener(event1, startListener));
-		list.add(new NamedExecutionListener(event2, endListener));
+        private final AbstractBuild<?, ?> build;
+        private final ActivitiWorkflowAction action;
 
-		callbacks.addDestructionCallback(startListener);
-		callbacks.addDestructionCallback(endListener);
+        public StoreMetadataCallback(AbstractBuild<?, ?> build, ActivitiWorkflowAction action) {
+            this.build = build;
+            this.action = action;
+        }
 
-		return list.toArray(new NamedExecutionListener[list.size()]);
-	}
+        public void destroy() {
+            Properties properties = action.getMetadata().getProperties();
 
-	/**
-	 * Returns the workflow name. Removes the leading string till the first
-	 * slash as well as the file extension.
-	 * 
-	 * @return String
-	 */
-	private String getWorkflowName() {
+            File file = new File(build.getRootDir(), "metadata.properties");
+            try {
+                properties.store(new FileOutputStream(file), "activity metadata");
+            } catch (IOException e) {
+                throw new RuntimeException("error while storing metadata", e);
+            }
+        }
 
-		if (StringUtils.contains(pathToWorkflow, File.separator)) {
-			String workflowName = StringUtils.substringAfterLast(pathToWorkflow, File.separator);
-			return StringUtils.substringBefore(workflowName, ".bpmn20.xml");
-		}
-		return StringUtils.substringBefore(pathToWorkflow, ".bpmn20.xml");
-	}
+    }
 
-	/**
-	 * Logs the given message.
-	 * 
-	 * @param logger
-	 * @param msg
-	 */
-	private void log(PrintStream logger, String msg) {
-		logger.append(msg);
-		logger.println();
-	}
+    /**
+     * Returns the {@link NamedExecutionListener} instances to register. The
+     * listeners adds the given {@link Observer} instance and are registered to
+     * be destroyed by the end of the execution by the use of the
+     * DestructionCallback mechanism.
+     * 
+     * @param observer
+     * @param callbacks
+     * @return ActivitiExecutionListener[]
+     */
+    private NamedExecutionListener[] getExecutionListeners(Observer observer, DestructionCallbacks callbacks) {
+        final String event1 = EVENTNAME_START;
+        final String event2 = EVENTNAME_END;
 
-	/**
-	 * Returns a {@link FilePath} instance to the process diagram file.
-	 * 
-	 * @param workspace
-	 * @return FilePath
-	 */
-	private FilePath getWorkflowDiagram(FilePath workspace) {
-		return new FilePath(workspace, pathToWorkflow);
-	}
+        ActivityStartListener startListener = new ActivityStartListener();
+        ActivityEndListener endListener = new ActivityEndListener();
 
-	@Override
-	public DescriptorImpl getDescriptor() {
-		return (DescriptorImpl) super.getDescriptor();
-	}
+        startListener.addObserver(observer);
+        endListener.addObserver(observer);
 
-	/**
-	 * Descriptor for {@link WorkflowBuilder}. Used as a singleton. The class is
-	 * marked as public so that it can be accessed from views.
-	 * 
-	 * <p>
-	 * See
-	 * <tt>src/main/resources/hudson/plugins/hello_world/HelloWorldBuilder/*.jelly</tt>
-	 * for the actual HTML fragment for the configuration screen.
-	 */
-	@Extension
-	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+        List<NamedExecutionListener> list = new ArrayList<NamedExecutionListener>();
+        list.add(new NamedExecutionListener(event1, startListener));
+        list.add(new NamedExecutionListener(event2, endListener));
 
-		/**
-		 * Performs on-the-fly validation of the form field 'name'.
-		 * 
-		 * @param value
-		 *            This parameter receives the value that the user has typed.
-		 * @return Indicates the outcome of the validation. This is sent to the
-		 *         browser.
-		 */
-		public FormValidation doCheckPathToWorkflow(@QueryParameter String value)
-				throws IOException, ServletException {
-			if (value.length() == 0)
-				return FormValidation.error("Please set the path to the workflow diagram");
-			return FormValidation.ok();
-		}
+        callbacks.addDestructionCallback(startListener);
+        callbacks.addDestructionCallback(endListener);
 
-		@SuppressWarnings("rawtypes")
-		public boolean isApplicable(Class<? extends AbstractProject> aClass) {
-			// Indicates that this builder can be used with all kinds of project
-			// types
-			return true;
-		}
+        return list.toArray(new NamedExecutionListener[list.size()]);
+    }
 
-		/**
-		 * This human readable name is used in the configuration screen.
-		 */
-		public String getDisplayName() {
-			return "Activiti Workflow";
-		}
+    /**
+     * Returns the workflow name. Removes the leading string till the first
+     * slash as well as the file extension.
+     * 
+     * @return String
+     */
+    private String getWorkflowName() {
 
-	}
+        if (StringUtils.contains(pathToWorkflow, File.separator)) {
+            String workflowName = StringUtils.substringAfterLast(pathToWorkflow, File.separator);
+            return StringUtils.substringBefore(workflowName, ".bpmn20.xml");
+        }
+        return StringUtils.substringBefore(pathToWorkflow, ".bpmn20.xml");
+    }
+
+    /**
+     * Logs the given message.
+     * 
+     * @param logger
+     * @param msg
+     */
+    private void log(PrintStream logger, String msg) {
+        logger.append(msg);
+        logger.println();
+    }
+
+    /**
+     * Returns a {@link FilePath} instance to the process diagram file.
+     * 
+     * @param workspace
+     * @return FilePath
+     */
+    private FilePath getWorkflowDiagram(FilePath workspace) {
+        return new FilePath(workspace, pathToWorkflow);
+    }
+
+    @Override
+    public DescriptorImpl getDescriptor() {
+        return (DescriptorImpl)super.getDescriptor();
+    }
+
+    /**
+     * Descriptor for {@link WorkflowBuilder}. Used as a singleton. The class is
+     * marked as public so that it can be accessed from views.
+     * 
+     * <p>
+     * See <tt>src/main/resources/hudson/plugins/hello_world/HelloWorldBuilder/*.jelly</tt> for the actual HTML fragment
+     * for the configuration screen.
+     */
+    @Extension
+    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+
+        /**
+         * Performs on-the-fly validation of the form field 'name'.
+         * 
+         * @param value
+         *            This parameter receives the value that the user has typed.
+         * @return Indicates the outcome of the validation. This is sent to the
+         *         browser.
+         */
+        public FormValidation doCheckPathToWorkflow(@QueryParameter String value) throws IOException, ServletException {
+            if (value.length() == 0) {
+                return FormValidation.error("Please set the path to the workflow diagram");
+            }
+            return FormValidation.ok();
+        }
+
+        @Override
+        @SuppressWarnings("rawtypes")
+        public boolean isApplicable(Class<? extends AbstractProject> aClass) {
+            // Indicates that this builder can be used with all kinds of project
+            // types
+            return true;
+        }
+
+        /**
+         * This human readable name is used in the configuration screen.
+         */
+        @Override
+        public String getDisplayName() {
+            return "Activiti Workflow";
+        }
+
+    }
 }

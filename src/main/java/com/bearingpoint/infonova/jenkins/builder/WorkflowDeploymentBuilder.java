@@ -12,6 +12,7 @@ import hudson.Launcher;
 import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.remoting.Callable;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
@@ -45,146 +46,176 @@ import com.bearingpoint.infonova.jenkins.util.JenkinsUtils;
  */
 public class WorkflowDeploymentBuilder extends Builder {
 
-	private final String pathToWorkflow;
+    private final String pathToWorkflow;
 
-	@DataBoundConstructor
-	public WorkflowDeploymentBuilder(String pathToWorkflow) {
-		this.pathToWorkflow = pathToWorkflow;
-	}
+    @DataBoundConstructor
+    public WorkflowDeploymentBuilder(String pathToWorkflow) {
+        this.pathToWorkflow = pathToWorkflow;
+    }
 
-	/**
-	 * We'll use this from the <tt>config.jelly</tt>.
-	 */
-	public String getPathToWorkflow() {
-		return pathToWorkflow;
-	}
+    /**
+     * We'll use this from the <tt>config.jelly</tt>.
+     */
+    public String getPathToWorkflow() {
+        return pathToWorkflow;
+    }
 
-	@Override
-	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
+    @Override
+    public boolean perform(final AbstractBuild<?, ?> build, final Launcher launcher, final BuildListener listener) {
 
-		final PrintStream logger = listener.getLogger();
+        // run on target server
+        // could be a JENKINS slave
+        @SuppressWarnings("serial")
+        Callable<Boolean, Exception> call = new Callable<Boolean, Exception>() {
 
-		// get the BPMN XML file from the workspace
-		final FilePath diagram = getWorkflowDiagram(build.getWorkspace());
+            public Boolean call() throws Exception {
+                return performInternal(build, launcher, listener);
+            }
 
-		// get the process engine instances
-		ProcessEngine engine = JenkinsProcessEngine.getProcessEngine();
+        };
 
-		String processId = null;
+        // runs on the JENKINS master
+        try {
+            return launcher.getChannel().call(call);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
 
-		try {
-			// deploy the BPMN process
-			log(logger, "deploy BPMN process: " + diagram.getRemote());
-			processId = ActivitiAccessor.deployProcess(engine, diagram);
-			
-			// add activity properties
-			Map<String, Object> properties = new HashMap<String, Object>();
-			properties.put(JOB_NAME_PROPERTY, build.getProject().getName());
-			properties.put(BUILD_NUMBER_PROPERTY, build.getNumber());
+    }
 
-			ActivitiUtils.addActivityProperties(processId, properties);
-			
-		} catch (RuntimeException ex) {
-			// delete the BPMN process execution if the build is aborted
-			log(logger, "delete aborted build BPMN process");
-			deleteAbortedBuildExecution(engine, processId, build);
-			final String obj = ex.getMessage();
-			return handleException(build, ACTIVITI09, ex, listener, obj);
-		} catch (FileNotFoundException ex) {
-			final String obj = diagram.getRemote();
-			return handleException(build, ACTIVITI10, ex, listener, obj);
-		}
+    public boolean performInternal(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
 
-		return true;
-	}
+        final PrintStream logger = listener.getLogger();
 
-	/**
-	 * Handles the occurred exception.
-	 * 
-	 * @param build
-	 * @param errorCode
-	 * @param ex
-	 * @param listener
-	 * @param variables
-	 * @return boolean
-	 */
-	private boolean handleException(AbstractBuild<?, ?> build, ErrorCode errorCode, Exception ex,
-			BuildListener listener, Object... variables) {
+        // get the BPMN XML file from the workspace
+        final FilePath diagram = getWorkflowDiagram(build.getWorkspace());
 
-		File errorRef = JenkinsUtils.storeException(build, ex);
-		build.addAction(new ActivitiWorkflowErrorAction(errorCode, errorRef));
+        // get the process engine instances
+        ProcessEngine engine = JenkinsProcessEngine.getProcessEngine();
 
-		listener.fatalError(resolve(errorCode, variables));
+        String processId = null;
 
-		return false;
-	}
+        try {
+            // deploy the BPMN process
+            log(logger, "deploy BPMN process: " + diagram.getRemote());
+            processId = ActivitiAccessor.deployProcess(engine, diagram);
 
-	/**
-	 * Logs the given message.
-	 * 
-	 * @param logger
-	 * @param msg
-	 */
-	private void log(PrintStream logger, String msg) {
-		logger.append(msg);
-		logger.println();
-	}
+            // add activity properties
+            Map<String, Object> properties = new HashMap<String, Object>();
+            properties.put(JOB_NAME_PROPERTY, build.getProject().getName());
+            properties.put(BUILD_NUMBER_PROPERTY, build.getNumber());
 
-	/**
-	 * Returns a {@link FilePath} instance to the process diagram file.
-	 * 
-	 * @param workspace
-	 * @return FilePath
-	 */
-	private FilePath getWorkflowDiagram(FilePath workspace) {
-		return new FilePath(workspace, pathToWorkflow);
-	}
+            ActivitiUtils.addActivityProperties(processId, properties);
 
-	@Override
-	public DescriptorImpl getDescriptor() {
-		return (DescriptorImpl) super.getDescriptor();
-	}
+        } catch (RuntimeException ex) {
+            // delete the BPMN process execution if the build is aborted
+            log(logger, "delete aborted build BPMN process");
+            deleteAbortedBuildExecution(engine, processId, build);
+            final String obj = ex.getMessage();
+            return handleException(build, ACTIVITI09, ex, listener, obj);
+        } catch (FileNotFoundException ex) {
+            final String obj = diagram.getRemote();
+            return handleException(build, ACTIVITI10, ex, listener, obj);
+        }
 
-	/**
-	 * Descriptor for {@link WorkflowDeploymentBuilder}. Used as a singleton.
-	 * The class is marked as public so that it can be accessed from views.
-	 * 
-	 * <p>
-	 * See
-	 * <tt>src/main/resources/hudson/plugins/hello_world/HelloWorldBuilder/*.jelly</tt>
-	 * for the actual HTML fragment for the configuration screen.
-	 */
-	@Extension
-	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+        return true;
+    }
 
-		/**
-		 * Performs on-the-fly validation of the form field 'name'.
-		 * 
-		 * @param value
-		 *            This parameter receives the value that the user has typed.
-		 * @return Indicates the outcome of the validation. This is sent to the
-		 *         browser.
-		 */
-		public FormValidation doCheckPathToWorkflow(@QueryParameter String value)
-				throws IOException, ServletException {
-			if (value.length() == 0)
-				return FormValidation.error("Please set the path to the workflow diagram");
-			return FormValidation.ok();
-		}
+    /**
+     * Handles the occurred exception.
+     * 
+     * @param build
+     * @param errorCode
+     * @param ex
+     * @param listener
+     * @param variables
+     * @return boolean
+     */
+    private boolean handleException(AbstractBuild<?, ?> build, ErrorCode errorCode, Exception ex,
+            BuildListener listener, Object... variables) {
 
-		@SuppressWarnings("rawtypes")
-		public boolean isApplicable(Class<? extends AbstractProject> aClass) {
-			// Indicates that this builder can be used with all kinds of project
-			// types
-			return true;
-		}
+        File errorRef = JenkinsUtils.storeException(build, ex);
+        build.addAction(new ActivitiWorkflowErrorAction(errorCode, errorRef));
 
-		/**
-		 * This human readable name is used in the configuration screen.
-		 */
-		public String getDisplayName() {
-			return "Activiti Workflow Deployment";
-		}
+        listener.fatalError(resolve(errorCode, variables));
 
-	}
+        return false;
+    }
+
+    /**
+     * Logs the given message.
+     * 
+     * @param logger
+     * @param msg
+     */
+    private void log(PrintStream logger, String msg) {
+        logger.append(msg);
+        logger.println();
+    }
+
+    /**
+     * Returns a {@link FilePath} instance to the process diagram file.
+     * 
+     * @param workspace
+     * @return FilePath
+     */
+    private FilePath getWorkflowDiagram(FilePath workspace) {
+        return new FilePath(workspace, pathToWorkflow);
+    }
+
+    @Override
+    public DescriptorImpl getDescriptor() {
+        return (DescriptorImpl)super.getDescriptor();
+    }
+
+    /**
+     * Descriptor for {@link WorkflowDeploymentBuilder}. Used as a singleton.
+     * The class is marked as public so that it can be accessed from views.
+     * 
+     * <p>
+     * See <tt>src/main/resources/hudson/plugins/hello_world/HelloWorldBuilder/*.jelly</tt> for the actual HTML fragment
+     * for the configuration screen.
+     */
+    @Extension
+    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+
+        /**
+         * Performs on-the-fly validation of the form field 'name'.
+         * 
+         * @param value
+         *            This parameter receives the value that the user has typed.
+         * @return Indicates the outcome of the validation. This is sent to the
+         *         browser.
+         */
+        public FormValidation doCheckPathToWorkflow(@QueryParameter String value) throws IOException, ServletException {
+            if (value.length() == 0) {
+                return FormValidation.error("Please set the path to the workflow diagram");
+            }
+            return FormValidation.ok();
+        }
+
+        @Override
+        @SuppressWarnings("rawtypes")
+        public boolean isApplicable(Class<? extends AbstractProject> aClass) {
+            // Indicates that this builder can be used with all kinds of project
+            // types
+            return true;
+        }
+
+        /**
+         * This human readable name is used in the configuration screen.
+         */
+        @Override
+        public String getDisplayName() {
+            return "Activiti Workflow Deployment";
+        }
+
+    }
 }
