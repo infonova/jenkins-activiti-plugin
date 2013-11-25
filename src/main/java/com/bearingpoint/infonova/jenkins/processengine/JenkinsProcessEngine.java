@@ -6,11 +6,13 @@ import java.util.List;
 import org.activiti.engine.ProcessEngine;
 import org.activiti.engine.ProcessEngineConfiguration;
 import org.activiti.engine.ProcessEngines;
-import org.activiti.engine.impl.bpmn.parser.BpmnParseListener;
 import org.activiti.engine.impl.cfg.ProcessEngineConfigurationImpl;
+import org.activiti.engine.impl.history.HistoryLevel;
+import org.activiti.engine.parse.BpmnParseHandler;
 
-import com.bearingpoint.infonova.jenkins.listener.ResourceBpmnParseListener;
-import com.bearingpoint.infonova.jenkins.listener.SupportedElementsBpmnParseListener;
+import com.bearingpoint.infonova.jenkins.parsehandler.CustomCallActivityParseHandler;
+import com.bearingpoint.infonova.jenkins.parsehandler.CustomScriptTaskParseHandler;
+import com.bearingpoint.infonova.jenkins.parsehandler.CustomServiceTaskParseHandler;
 
 /**
  * Configuration class for the activiti process engine.
@@ -20,66 +22,60 @@ import com.bearingpoint.infonova.jenkins.listener.SupportedElementsBpmnParseList
  */
 public final class JenkinsProcessEngine {
 
-	/** the activiti process engine. */
-	private static ProcessEngine engine;
+    /** the activiti process engine. */
+    private static ProcessEngine engine;
 
-	private JenkinsProcessEngine() {
-		super();
-	}
+    private JenkinsProcessEngine() {
+        super();
+    }
 
-	/**
-	 * Initializes and returns the {@ProcessEngine}.
-	 * 
-	 * @return ProcessEngine
-	 */
-	public synchronized static ProcessEngine getProcessEngine() {
+    /**
+     * Initializes and returns the {@ProcessEngine}.
+     * 
+     * @return ProcessEngine
+     */
+    public synchronized static ProcessEngine getProcessEngine() {
 
-		if (engine != null) {
-			return engine;
-		}
+        if (engine != null) {
+            return engine;
+        }
 
-		ProcessEngineConfigurationImpl config = (ProcessEngineConfigurationImpl) ProcessEngineConfiguration
-				.createStandaloneProcessEngineConfiguration();
+        ProcessEngineConfigurationImpl config = (ProcessEngineConfigurationImpl)ProcessEngineConfiguration
+            .createStandaloneProcessEngineConfiguration();
 
-		config.setPreParseListeners(getBpmnParseListeners());
+        config.setPostBpmnParseHandlers(getBpmnParseHandlers());
 
-		ClassLoader cl1 = JenkinsProcessEngine.class.getClassLoader();
-		ClassLoader cl2 = Thread.currentThread().getContextClassLoader();
+        ClassLoader cl1 = JenkinsProcessEngine.class.getClassLoader();
+        ClassLoader cl2 = Thread.currentThread().getContextClassLoader();
 
-		try {
-			Thread.currentThread().setContextClassLoader(cl1);
+        try {
+            Thread.currentThread().setContextClassLoader(cl1);
 
-			config.setJdbcUrl("jdbc:h2:mem:activiti;DB_CLOSE_DELAY=1000");
-			config.setJdbcDriver("org.h2.Driver");
-			config.setJdbcUsername("sa");
-			config.setJdbcPassword("");
+            config.setJdbcUrl("jdbc:h2:mem:activiti;DB_CLOSE_DELAY=1000");
+            config.setJdbcDriver("org.h2.Driver");
+            config.setJdbcUsername("sa");
+            config.setJdbcPassword("");
 
-			config.setDatabaseSchemaUpdate("true");
-			config.setJobExecutorActivate(false);
+            config.setDatabaseSchemaUpdate("true");
+            config.setJobExecutorActivate(false);
 
-			config.setHistoryLevel(ProcessEngineConfigurationImpl.HISTORYLEVEL_NONE);
+            config.setHistoryLevel(HistoryLevel.NONE);
 
-			engine = config.buildProcessEngine();
-			ProcessEngines.registerProcessEngine(engine);
-		} finally {
-			Thread.currentThread().setContextClassLoader(cl2);
-		}
-		return engine;
-	}
+            engine = config.buildProcessEngine();
+            ProcessEngines.registerProcessEngine(engine);
+        } finally {
+            Thread.currentThread().setContextClassLoader(cl2);
+        }
+        return engine;
+    }
 
-	/**
-	 * Returns a list of {@link BpmnParseListener} instances to register to the
-	 * {@link ProcessEngine}.
-	 * 
-	 * @return List
-	 */
-	private static List<BpmnParseListener> getBpmnParseListeners() {
-		List<BpmnParseListener> listeners = new ArrayList<BpmnParseListener>();
+    private static List<BpmnParseHandler> getBpmnParseHandlers() {
+        List<BpmnParseHandler> list = new ArrayList<BpmnParseHandler>();
+        list.add(new CustomScriptTaskParseHandler());
+        list.add(new CustomServiceTaskParseHandler());
+        list.add(new CustomCallActivityParseHandler());
 
-		listeners.add(new SupportedElementsBpmnParseListener());
-		listeners.add(new ResourceBpmnParseListener());
-
-		return listeners;
-	}
+        return list;
+    }
 
 }
