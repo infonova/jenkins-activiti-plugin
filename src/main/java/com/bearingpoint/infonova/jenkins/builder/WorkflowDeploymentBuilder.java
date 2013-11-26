@@ -63,8 +63,7 @@ public class WorkflowDeploymentBuilder extends Builder {
     @Override
     public boolean perform(final AbstractBuild<?, ?> build, final Launcher launcher, final BuildListener listener) {
 
-        // run on target server
-        // could be a JENKINS slave
+        // runs on the JENKINS master or slave
         @SuppressWarnings("serial")
         Callable<Boolean, Exception> call = new Callable<Boolean, Exception>() {
 

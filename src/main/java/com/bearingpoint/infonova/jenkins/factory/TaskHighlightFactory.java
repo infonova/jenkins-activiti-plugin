@@ -9,11 +9,15 @@ import org.activiti.engine.impl.bpmn.behavior.ScriptTaskActivityBehavior;
 import org.activiti.engine.impl.bpmn.behavior.UserTaskActivityBehavior;
 import org.activiti.engine.impl.pvm.delegate.ActivityBehavior;
 import org.activiti.engine.impl.pvm.process.ActivityImpl;
+import org.apache.commons.lang3.StringUtils;
 
+import com.bearingpoint.infonova.jenkins.activitybehavior.JenkinsActivitiTaskDelegate;
+import com.bearingpoint.infonova.jenkins.activitybehavior.RemoteJenkinsActivitiTaskDelegate;
 import com.bearingpoint.infonova.jenkins.parsehandler.CustomServiceTaskParseHandler;
 import com.bearingpoint.infonova.jenkins.ui.AbstractTaskHighlight;
 import com.bearingpoint.infonova.jenkins.ui.JenkinsActivitiTaskHighlight;
 import com.bearingpoint.infonova.jenkins.ui.ManualTaskHighlight;
+import com.bearingpoint.infonova.jenkins.ui.RemoteJenkinsActivitiTaskHighlight;
 import com.bearingpoint.infonova.jenkins.ui.ScriptTaskHighlight;
 import com.bearingpoint.infonova.jenkins.ui.UserTaskHighlight;
 import com.bearingpoint.infonova.jenkins.util.ActivitiUtils;
@@ -48,22 +52,30 @@ public final class TaskHighlightFactory {
         ActivityBehavior behavior = activity.getActivityBehavior();
         final String processId = activity.getProcessDefinition().getId();
 
+        // script task
         if (isScriptTask(behavior)) {
             File script = ActivitiUtils.storeProcessResources(build, activity);
             return new ScriptTaskHighlight(processId, activity.getId(), x1, y1, x2, y2, script);
         }
 
+        // manual task
         if (isManualTask(behavior)) {
             return new ManualTaskHighlight(processId, activity.getId(), x1, y1, x2, y2);
         }
 
+        // user task
         if (isUserTask(behavior)) {
             return new UserTaskHighlight(processId, activity.getId(), x1, y1, x2, y2);
         }
 
+        // remote JENKINS task
+        if (isRemoteJenkinsTask(activity)) {
+            return new RemoteJenkinsActivitiTaskHighlight(activity, x1, y1, x2, y2);
+        }
+
+        // local JENKINS task
         if (isJenkinsTask(activity)) {
-            String jobName = (String)activity.getProperty(CustomServiceTaskParseHandler.JENKINS_TASK_PROPERTY);
-            return new JenkinsActivitiTaskHighlight(processId, activity.getId(), x1, y1, x2, y2, jobName);
+            return new JenkinsActivitiTaskHighlight(activity, x1, y1, x2, y2);
         }
 
         // TODO: exception handling
@@ -101,13 +113,25 @@ public final class TaskHighlightFactory {
     }
 
     /**
-     * Indicates if the given {@link ActivityImpl} is a jenkins task.
+     * Indicates if the given {@link ActivityImpl} is a remote JENKINS task.
+     * 
+     * @param activity
+     * @return boolean
+     */
+    private static boolean isRemoteJenkinsTask(ActivityImpl activity) {
+        String impl = (String)activity.getProperty(CustomServiceTaskParseHandler.IMPLEMENTATION);
+        return StringUtils.equals(impl, RemoteJenkinsActivitiTaskDelegate.class.getName());
+    }
+
+    /**
+     * Indicates if the given {@link ActivityImpl} is a JENKINS task.
      * 
      * @param activity
      * @return boolean
      */
     private static boolean isJenkinsTask(ActivityImpl activity) {
-        return activity.getProperty(CustomServiceTaskParseHandler.JENKINS_TASK_PROPERTY) != null;
+        String impl = (String)activity.getProperty(CustomServiceTaskParseHandler.IMPLEMENTATION);
+        return StringUtils.equals(impl, JenkinsActivitiTaskDelegate.class.getName());
     }
 
 }

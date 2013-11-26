@@ -39,7 +39,7 @@ public class CustomServiceTaskParseHandlerUTest {
         ActivityImpl activity = getFirstScriptTask(entity.getActivities());
 
         Assert.notNull(activity);
-        Assert.notNull(activity.getProperty(CustomServiceTaskParseHandler.JENKINS_TASK_PROPERTY));
+        Assert.notNull(activity.getProperty(CustomServiceTaskParseHandler.IMPLEMENTATION));
     }
 
     private ActivityImpl getFirstScriptTask(List<ActivityImpl> activities) {
