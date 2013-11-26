@@ -17,26 +17,27 @@ import com.bearingpoint.infonova.jenkins.util.DestructionCallback;
  * @author christian.weber
  * @since 1.0
  */
+@SuppressWarnings("serial")
 public class ActivityEndListener extends Observable implements ExecutionListener, DestructionCallback {
 
-	private transient Logger logger = Logger.getLogger(ActivityEndListener.class);
-	
-	public void notify(DelegateExecution execution) throws Exception {
-		
-		if (logger.isDebugEnabled()) {
-			ExecutionEntity executionEntity = (ExecutionEntity) execution;
-			logger.debug("activity end listener " + executionEntity.getActivityId());
-		}
-		
-		super.setChanged();
-		super.notifyObservers(execution);
-	}
+    private transient Logger logger = Logger.getLogger(ActivityEndListener.class);
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public void destroy() {
-		super.deleteObservers();
-	}
+    public void notify(DelegateExecution execution) throws Exception {
+
+        if (logger.isDebugEnabled()) {
+            ExecutionEntity executionEntity = (ExecutionEntity)execution;
+            logger.debug("activity end listener " + executionEntity.getActivityId());
+        }
+
+        super.setChanged();
+        super.notifyObservers(execution);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void destroy() {
+        super.deleteObservers();
+    }
 
 }

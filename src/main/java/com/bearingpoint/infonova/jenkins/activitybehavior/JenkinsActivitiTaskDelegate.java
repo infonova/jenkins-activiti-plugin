@@ -45,6 +45,7 @@ import com.google.common.base.Optional;
  * @author christian.weber
  * @since 1.0
  */
+@SuppressWarnings("serial")
 public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 
     private transient Logger logger = Logger.getLogger(JenkinsActivitiTaskDelegate.class);
