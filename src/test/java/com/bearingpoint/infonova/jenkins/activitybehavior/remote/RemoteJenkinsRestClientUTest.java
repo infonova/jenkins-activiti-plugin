@@ -6,7 +6,6 @@ import java.util.Map;
 import junit.framework.Assert;
 
 import org.activiti.engine.impl.pvm.delegate.ActivityExecution;
-import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.bearingpoint.infonova.jenkins.util.JenkinsUtils;

@@ -30,6 +30,24 @@ import com.bearingpoint.infonova.jenkins.util.JenkinsUtils;
 @SuppressWarnings("serial")
 public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 
+    public static interface Callback {
+        void doSomething();
+    }
+
+    public static class ActivityThread extends Thread {
+
+        private final ActivityExecution execution;
+
+        public ActivityThread(ActivityExecution execution) {
+            this.execution = execution;
+        }
+
+        public ActivityExecution getExecution() {
+            return execution;
+        }
+
+    }
+
     private transient Logger logger = Logger.getLogger(RemoteJenkinsActivitiTaskDelegate.class);
 
     private Expression jobName;
@@ -68,6 +86,9 @@ public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavi
                     // Marks the job as finished
                     runtimeService.signal(this.getExecution().getId());
                 } catch (Exception e) {
+                    // TODO log this exception
+                    e.printStackTrace();
+
                     Map<String, Object> variables = new HashMap<String, Object>();
                     variables.put("result", Result.FAILURE.toString());
 
@@ -166,24 +187,28 @@ public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavi
         // at first load the JENKINS job info so that
         // the previous build number could be extracted
         // in order to evaluate the build status
-        AbstractRemoteJenkinsBuild build = client.getJobInfo(getJobName());
-        int previousNumber = build.getNumber();
+        AbstractRemoteJenkinsBuild previousBuild = client.getJobInfo(getJobName());
+        // if build could not be determined, set previousNumber to -1
+        int previousNumber = previousBuild != null?previousBuild.getNumber():-1;
 
         // schedule the JENKINS job
+        System.out.println("Scheduling Job...");
         client.scheduleJob(getJobName(), variables, getVariablesMap());
 
-        // compare the current version with the previous version
-        Thread.sleep(1000);
-        build = client.getJobInfo(getJobName());
-        while (build.getNumber() == previousNumber) {
-            Thread.sleep(1000);
-            build = client.getJobInfo(getJobName());
+        AbstractRemoteJenkinsBuild build = waitForJobToBeScheduled(client);
+
+        // compare the current version with the previous version (it's possible that there is already a previous build scheduled)
+        while ((build = client.getJobInfo(getJobName())).getNumber() == previousNumber) {
+            System.out.println("Waiting for the previous Job " + build.getFullDisplayName() + " to finish...");
+            Thread.sleep(5000);
         }
 
         // wait until the build is finished
-        while (build.isBuilding()) {
+        final String buildNumber = String.valueOf(build.getNumber());
+        while ((build = client.getJobInfo(getJobName(), buildNumber)).isBuilding()) {
+            System.out.println("Waiting for the current Job " + build.getFullDisplayName() + " to finish...");
             Thread.sleep(15000);
-            build = client.getJobInfo(getJobName());
+ 
         }
 
         // mark the build as failure if build does not finished with success result
@@ -193,24 +218,18 @@ public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavi
 
     }
 
-    public static interface Callback {
+    private AbstractRemoteJenkinsBuild waitForJobToBeScheduled(final RemoteJenkinsRestClient client) throws Exception {
+        /*
+         * TODO (ederst) add a timeout?
+         */
+        AbstractRemoteJenkinsBuild build;
 
-        void doSomething();
+        do {
+            System.out.println("Waiting for Job to be scheduled...");
+            Thread.sleep(5000);
+        } while ((build = client.getJobInfo(getJobName())) == null);
 
-    }
-
-    public static class ActivityThread extends Thread {
-
-        private final ActivityExecution execution;
-
-        public ActivityThread(ActivityExecution execution) {
-            this.execution = execution;
-        }
-
-        public ActivityExecution getExecution() {
-            return execution;
-        }
-
+        return build;
     }
 
 }

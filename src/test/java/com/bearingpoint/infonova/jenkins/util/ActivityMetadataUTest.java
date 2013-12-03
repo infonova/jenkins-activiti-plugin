@@ -2,10 +2,7 @@ package com.bearingpoint.infonova.jenkins.util;
 
 import hudson.model.AbstractBuild;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Properties;
 
 import org.activiti.engine.impl.persistence.entity.ExecutionEntity;
 import org.junit.Before;
