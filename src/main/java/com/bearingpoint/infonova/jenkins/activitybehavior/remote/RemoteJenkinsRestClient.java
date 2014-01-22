@@ -38,8 +38,8 @@ public class RemoteJenkinsRestClient {
     /*
      * TODO USERNAME and PASSWORD have to be made configurable
      */
-    private static final String PASSWORD = "password";
-    private static final String USERNAME = "username";
+    private static final String PASSWORD = "eT$061113+";
+    private static final String USERNAME = "wallview";
 
     private final String scheme;
 
@@ -69,7 +69,7 @@ public class RemoteJenkinsRestClient {
     /**
      * Returns the set of parameter names of the JENKINS job with the given
      * name.
-     *
+     * 
      * @param jobName
      * @return Set
      * @throws Exception
@@ -79,7 +79,7 @@ public class RemoteJenkinsRestClient {
         // establish the HTTP connection
         HttpClient client = new PreemptiveHttpClient(USERNAME, PASSWORD, 30);
 
-        //GetMethod method = new GetMethod(getProjectConfigURI(jobName));
+        // GetMethod method = new GetMethod(getProjectConfigURI(jobName));
         HttpGet request = new HttpGet(getProjectConfigURI(jobName));
 
         // execute the HTTP method
@@ -91,7 +91,7 @@ public class RemoteJenkinsRestClient {
 
     /**
      * Returns the REST URI which returns the project configuration XML.
-     *
+     * 
      * @param jobName
      * @return String
      * @throws Exception
@@ -100,7 +100,9 @@ public class RemoteJenkinsRestClient {
         URIBuilder builder = new URIBuilder();
         builder.setScheme(scheme);
         builder.setHost(host);
-        builder.setPort(Integer.parseInt(port));
+        if (port != null) {
+            builder.setPort(Integer.parseInt(port));
+        }
         builder.setPath(path + jobName + "/config.xml");
 
         System.out.println("URI: " + builder.build());
@@ -110,7 +112,7 @@ public class RemoteJenkinsRestClient {
     /**
      * Returns the set of parameter names of the JENKINS job with the given
      * name.
-     *
+     * 
      * @param configStream
      * @return Set
      * @throws Exception
@@ -124,9 +126,9 @@ public class RemoteJenkinsRestClient {
         XPathExpression xPathExpression = xPath.compile(expression);
         InputSource inputSource = new InputSource(configStream);
 
-        NodeList list = (NodeList) xPathExpression.evaluate(inputSource, XPathConstants.NODESET);
+        NodeList list = (NodeList)xPathExpression.evaluate(inputSource, XPathConstants.NODESET);
         for (int i = 0; i < list.getLength(); i++) {
-            Node node = (Node) list.item(i);
+            Node node = (Node)list.item(i);
             parameterNames.add(node.getTextContent());
         }
 
@@ -136,13 +138,12 @@ public class RemoteJenkinsRestClient {
     /**
      * Schedules the JENKINS job with the given name. If the JENKINS job is
      * parameterized matching parameters from the ACTIVITI context will be used.
-     *
+     * 
      * @param uri
      * @param parameters
      * @throws Exception
      */
-    public void scheduleJob(String jobName, Map<String, Object> variables,
-            Map<String, String> params) throws Exception {
+    public void scheduleJob(String jobName, Map<String, Object> variables, Map<String, String> params) throws Exception {
         HttpClient client = new PreemptiveHttpClient(USERNAME, PASSWORD, 30);
 
         Set<String> parameterNames = getParameterNames(jobName);
@@ -166,7 +167,7 @@ public class RemoteJenkinsRestClient {
     /**
      * Returns the JENKINS URI which executes the JENKINS Job with the given
      * name.
-     *
+     * 
      * @return String the URI
      * @throws Exception
      */
@@ -174,7 +175,9 @@ public class RemoteJenkinsRestClient {
         URIBuilder builder = new URIBuilder();
         builder.setScheme(scheme);
         builder.setHost(host);
-        builder.setPort(Integer.parseInt(port));
+        if (port != null) {
+            builder.setPort(Integer.parseInt(port));
+        }
         builder.setPath(path + jobName + "/build");
 
         System.out.println("URI: " + builder.build());
@@ -184,17 +187,18 @@ public class RemoteJenkinsRestClient {
     /**
      * Returns the JENKINS URI which executes the JENKINS Job with the given
      * name.
-     *
+     * 
      * @return String the URI
      * @throws Exception
      */
     private String getParameterizedExecutionURI(String jobName, Set<String> parameters,
-            Map<String, Object> globalVariables, Map<String, String> taskVariables)
-            throws Exception {
+            Map<String, Object> globalVariables, Map<String, String> taskVariables) throws Exception {
         URIBuilder builder = new URIBuilder();
         builder.setScheme(scheme);
         builder.setHost(host);
-        builder.setPort(Integer.parseInt(port));
+        if (port != null) {
+            builder.setPort(Integer.parseInt(port));
+        }
         builder.setPath(path + jobName + "/buildWithParameters");
 
         Map<String, Object> variables = new HashMap<String, Object>(globalVariables);
@@ -222,7 +226,7 @@ public class RemoteJenkinsRestClient {
     /**
      * Returns an {@link AbstractRemoteJenkindBuild} instance which contains
      * META information about the JENKINS job with the given name.
-     *
+     * 
      * @param jobName
      * @return AbstractRemoteJenkinsBuild
      * @throws Exception
@@ -239,12 +243,13 @@ public class RemoteJenkinsRestClient {
             String xml = handler.handleResponse(response);
 
             if (xml.contains("freeStyleBuild")) {
-                return (RemoteFreeStyleBuild) Run.XSTREAM2.fromXML(xml);
+                return (RemoteFreeStyleBuild)Run.XSTREAM2.fromXML(xml);
             } else {
-                return (RemoteMavenBuild) Run.XSTREAM2.fromXML(xml);
+                return (RemoteMavenBuild)Run.XSTREAM2.fromXML(xml);
             }
         } else {
-            System.out.println("Job information could not be determined. Code: " + status.getStatusCode() + ", " + status.getReasonPhrase() + ")");
+            System.out.println("Job information could not be determined. Code: " + status.getStatusCode() + ", "
+                + status.getReasonPhrase() + ")");
             return null;
         }
 
@@ -253,7 +258,7 @@ public class RemoteJenkinsRestClient {
     /**
      * Returns an {@link AbstractRemoteJenkindBuild} instance which contains
      * META information about the JENKINS job with the given name.
-     *
+     * 
      * @param jobName
      * @return AbstractRemoteJenkinsBuild
      * @throws Exception
@@ -265,7 +270,7 @@ public class RemoteJenkinsRestClient {
     /**
      * Returns the JENKINS REST URI which returns the META information about the
      * jenkins job with the given name.
-     *
+     * 
      * @param jobName
      * @return String
      * @throws Exception
@@ -274,7 +279,9 @@ public class RemoteJenkinsRestClient {
         URIBuilder builder = new URIBuilder();
         builder.setScheme(scheme);
         builder.setHost(host);
-        builder.setPort(Integer.parseInt(port));
+        if (port != null) {
+            builder.setPort(Integer.parseInt(port));
+        }
         builder.setPath(path + jobName + "/" + buildNumberOrLink + "/api/xml");
         builder.setQuery("tree=fullDisplayName,building,number,result");
 

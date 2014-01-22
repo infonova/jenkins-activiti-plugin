@@ -15,11 +15,13 @@ import com.thoughtworks.xstream.annotations.XStreamAlias;
 @XStreamAlias("jenkinstask")
 public class JenkinsActivitiTaskHighlight extends AbstractTaskHighlight {
 
-    private final Map<String, Object> properties;
+    private final String jobName;
 
     public JenkinsActivitiTaskHighlight(ActivityImpl activity, int x1, int y1, int x2, int y2) {
         super(getProcessId(activity), activity.getId(), x1, y1, x2, y2);
-        this.properties = activity.getProperties();
+
+        Map<String, Object> properties = activity.getProperties();
+        this.jobName = (String)properties.get("jobName");
     }
 
     private static String getProcessId(ActivityImpl activity) {
@@ -32,7 +34,7 @@ public class JenkinsActivitiTaskHighlight extends AbstractTaskHighlight {
      * @return String
      */
     public String getJobName() {
-        return (String)properties.get("jobName");
+        return jobName;
     }
 
     /**
@@ -40,7 +42,7 @@ public class JenkinsActivitiTaskHighlight extends AbstractTaskHighlight {
      */
     @Override
     public String getLink() {
-        return "/job/" + getJobName();
+        return "/job/" + jobName;
     }
 
 }

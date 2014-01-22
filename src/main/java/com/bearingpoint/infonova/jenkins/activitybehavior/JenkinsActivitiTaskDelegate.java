@@ -54,6 +54,8 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 
     private Expression variablesMap;
 
+    private Expression jobResultCondition;
+
     @Override
     public void execute(ActivityExecution execution) throws Exception {
 
@@ -114,8 +116,9 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 
     }
 
-    private static boolean isSuccessful(Optional<Object> result) {
-        return result.isPresent() && StringUtils.equalsIgnoreCase(result.get().toString(), "SUCCESS");
+    private boolean isSuccessful(Optional<Object> result) {
+        String condition = jobResultCondition == null ? "SUCCESS" : jobResultCondition.getExpressionText();
+        return result.isPresent() && StringUtils.equalsIgnoreCase(result.get().toString(), condition);
     }
 
     /**

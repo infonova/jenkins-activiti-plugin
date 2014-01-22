@@ -17,6 +17,7 @@ import java.util.Set;
 import org.activiti.engine.HistoryService;
 import org.activiti.engine.ProcessEngine;
 import org.activiti.engine.RepositoryService;
+import org.activiti.engine.RuntimeService;
 import org.activiti.engine.history.HistoricProcessInstance;
 import org.activiti.engine.impl.bpmn.behavior.CallActivityBehavior;
 import org.activiti.engine.impl.bpmn.data.SimpleDataInputAssociation;
@@ -24,11 +25,14 @@ import org.activiti.engine.impl.persistence.entity.ProcessDefinitionEntity;
 import org.activiti.engine.impl.pvm.process.ActivityImpl;
 import org.activiti.engine.repository.ProcessDefinition;
 import org.activiti.engine.runtime.Execution;
+import org.activiti.engine.runtime.ProcessInstance;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 
+import com.bearingpoint.infonova.jenkins.action.ActivitiWorkflowAction;
 import com.bearingpoint.infonova.jenkins.exception.ActivitiWorkflowException;
 import com.bearingpoint.infonova.jenkins.exception.ErrorCode;
+import com.bearingpoint.infonova.jenkins.exception.JenkinsJobFailedException;
 import com.bearingpoint.infonova.jenkins.factory.CallActivityHighlightFactory;
 import com.bearingpoint.infonova.jenkins.factory.EventHighlightFactory;
 import com.bearingpoint.infonova.jenkins.factory.GatewayHighlightFactory;
@@ -449,6 +453,59 @@ public final class ActivitiUtils {
 
         }
 
+    }
+
+    /**
+     * Polls the workflow engine continuously till the process execution with
+     * the given process description id has finished.
+     * 
+     * @param engine
+     * @param processInstanceId
+     */
+    // TODO: add timeout
+    // or complete running tasks when new execution starts
+    public static void waitForProcessFinalization(AbstractBuild<?, ?> build, ProcessInstance pi)
+            throws InterruptedException {
+
+        ActivitiWorkflowAction action = build.getAction(ActivitiWorkflowAction.class);
+
+        // TODO: return failed task names
+        boolean hasFailedExecutions = false;
+        do {
+            // logger.debug("wait for process finalization for process with id " + processInstanceId);
+
+            Thread.sleep(1000);
+
+            for (String processId : action.getProcessIds()) {
+                if (hasFailedExecutions == false) {
+                    hasFailedExecutions = ActivitiUtils.hasFailedExecutions(processId);
+                }
+            }
+
+            ProcessInstance instance = getProcessInstanceById(pi.getId());
+            if (instance == null) {
+                return;
+            }
+            // failed executions check
+            if (hasFailedExecutions) {
+                throw new JenkinsJobFailedException();
+            }
+
+        } while (true);
+    }
+
+    /**
+     * Returns a {@link ProcessInstance} instance by the given id.
+     * 
+     * @param id
+     * @return ProcessInstance
+     */
+    public static ProcessInstance getProcessInstanceById(String id) {
+
+        ProcessEngine engine = ActivitiAccessor.getProcessEngine();
+        RuntimeService rs = engine.getRuntimeService();
+
+        return rs.createProcessInstanceQuery().processInstanceId(id).singleResult();
     }
 
 }

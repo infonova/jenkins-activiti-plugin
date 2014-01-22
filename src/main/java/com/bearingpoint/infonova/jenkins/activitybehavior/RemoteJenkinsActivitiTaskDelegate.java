@@ -22,7 +22,7 @@ import com.bearingpoint.infonova.jenkins.util.ActivitiAccessor;
 import com.bearingpoint.infonova.jenkins.util.JenkinsUtils;
 
 /**
- * Task delegate implementation for jenkins job invocation.
+ * Task delegate implementation for JENKINS job invocation.
  * 
  * @author christian.weber
  * @since 1.0
@@ -31,6 +31,7 @@ import com.bearingpoint.infonova.jenkins.util.JenkinsUtils;
 public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 
     public static interface Callback {
+
         void doSomething();
     }
 
@@ -85,9 +86,10 @@ public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavi
                     scheduleJob(variables);
                     // Marks the job as finished
                     runtimeService.signal(this.getExecution().getId());
-                } catch (Exception e) {
+                } catch (Exception o_O) {
                     // TODO log this exception
-                    e.printStackTrace();
+                    o_O.printStackTrace();
+                    logger.error("remote jenkins activity error", o_O);
 
                     Map<String, Object> variables = new HashMap<String, Object>();
                     variables.put("result", Result.FAILURE.toString());
@@ -148,6 +150,9 @@ public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavi
      * @return String
      */
     public String getPort() {
+        if (port == null) {
+            return null;
+        }
         return port.getExpressionText();
     }
 
@@ -176,7 +181,6 @@ public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavi
     }
 
     private void scheduleJob(Map<String, Object> variables) throws Exception {
-
         final String s1 = getScheme();
         final String s2 = getPort();
         final String s3 = getHost();
@@ -189,7 +193,7 @@ public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavi
         // in order to evaluate the build status
         AbstractRemoteJenkinsBuild previousBuild = client.getJobInfo(getJobName());
         // if build could not be determined, set previousNumber to -1
-        int previousNumber = previousBuild != null?previousBuild.getNumber():-1;
+        int previousNumber = previousBuild != null ? previousBuild.getNumber() : -1;
 
         // schedule the JENKINS job
         System.out.println("Scheduling Job...");
@@ -197,7 +201,8 @@ public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavi
 
         AbstractRemoteJenkinsBuild build = waitForJobToBeScheduled(client);
 
-        // compare the current version with the previous version (it's possible that there is already a previous build scheduled)
+        // compare the current version with the previous version (it's possible that there is already a previous build
+        // scheduled)
         while ((build = client.getJobInfo(getJobName())).getNumber() == previousNumber) {
             System.out.println("Waiting for the previous Job " + build.getFullDisplayName() + " to finish...");
             Thread.sleep(5000);
@@ -208,7 +213,6 @@ public class RemoteJenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavi
         while ((build = client.getJobInfo(getJobName(), buildNumber)).isBuilding()) {
             System.out.println("Waiting for the current Job " + build.getFullDisplayName() + " to finish...");
             Thread.sleep(15000);
- 
         }
 
         // mark the build as failure if build does not finished with success result

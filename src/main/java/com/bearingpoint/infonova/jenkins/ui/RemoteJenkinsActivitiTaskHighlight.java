@@ -15,11 +15,19 @@ import com.thoughtworks.xstream.annotations.XStreamAlias;
 @XStreamAlias("remotejenkinstask")
 public class RemoteJenkinsActivitiTaskHighlight extends AbstractTaskHighlight {
 
-    private final Map<String, Object> properties;
+    private final String jobName;
+    private final String scheme;
+    private final String host;
+    private final String port;
 
     public RemoteJenkinsActivitiTaskHighlight(ActivityImpl activity, int x1, int y1, int x2, int y2) {
         super(getProcessId(activity), activity.getId(), x1, y1, x2, y2);
-        this.properties = activity.getProperties();
+
+        Map<String, Object> properties = activity.getProperties();
+        this.jobName = (String)properties.get("jobName");
+        this.scheme = (String)properties.get("scheme");
+        this.host = (String)properties.get("host");
+        this.port = (String)properties.get("port");
     }
 
     private static String getProcessId(ActivityImpl activity) {
@@ -32,7 +40,7 @@ public class RemoteJenkinsActivitiTaskHighlight extends AbstractTaskHighlight {
      * @return String
      */
     public String getJobName() {
-        return (String)properties.get("jobName");
+        return jobName;
     }
 
     /**
@@ -40,11 +48,7 @@ public class RemoteJenkinsActivitiTaskHighlight extends AbstractTaskHighlight {
      */
     @Override
     public String getLink() {
-        final String scheme = (String)properties.get("scheme");
-        final String host = (String)properties.get("host");
-        final String port = (String)properties.get("port");
-
-        return String.format("%s://%s:%s/job/%s", scheme, host, port, getJobName());
+        return String.format("%s://%s:%s/job/%s", scheme, host, port, jobName);
     }
 
 }

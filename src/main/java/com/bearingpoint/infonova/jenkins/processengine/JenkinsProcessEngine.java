@@ -15,7 +15,7 @@ import com.bearingpoint.infonova.jenkins.parsehandler.CustomScriptTaskParseHandl
 import com.bearingpoint.infonova.jenkins.parsehandler.CustomServiceTaskParseHandler;
 
 /**
- * Configuration class for the activiti process engine.
+ * Configuration class for the ACTIVITI process engine.
  * 
  * @author christian.weber
  * @since 1.0
@@ -51,7 +51,7 @@ public final class JenkinsProcessEngine {
         try {
             Thread.currentThread().setContextClassLoader(cl1);
 
-            config.setJdbcUrl("jdbc:h2:mem:activiti;DB_CLOSE_DELAY=1000");
+            config.setJdbcUrl("jdbc:h2:mem:activiti");
             config.setJdbcDriver("org.h2.Driver");
             config.setJdbcUsername("sa");
             config.setJdbcPassword("");
@@ -60,6 +60,7 @@ public final class JenkinsProcessEngine {
             config.setJobExecutorActivate(false);
 
             config.setHistoryLevel(HistoryLevel.NONE);
+            config.setHistory("none");
 
             engine = config.buildProcessEngine();
             ProcessEngines.registerProcessEngine(engine);
