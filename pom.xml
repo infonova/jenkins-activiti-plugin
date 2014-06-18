@@ -37,8 +37,8 @@
     </pluginRepositories>
 
     <scm>
-        <connection>scm:svn:http://grzsvn01.infonova.at/easytax/easytax-extensions/sandbox/jenkins-activiti-plugin/trunk</connection>
-        <developerConnection>scm:svn:http://grzsvn01.infonova.at/easytax/easytax-extensions/sandbox/jenkins-activiti-plugin/trunk</developerConnection>
+        <connection>scm:git:ssh://git.infonova.at:29418/jenkins/plugins/jenkins-activiti-plugin.git</connection>
+        <developerConnection>scm:git:ssh://git.infonova.at:29418/jenkins/plugins/jenkins-activiti-plugin.git</developerConnection>
         <url>http://grzsvn01.infonova.at/easytax/easytax-extensions/sandbox/jenkins-activiti-plugin/trunk</url>
     </scm>
 
