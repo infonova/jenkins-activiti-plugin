@@ -17,6 +17,13 @@ ActivitiDialogBuilder.prototype.buildCallActivityDialog = function(callActivity)
 	// prepare the image div
 	var imageDiv = $("<div id='" + callActivity.activityId + "_dialog' />");
 
+	// finding an old Instance of this dialog and delete it
+	var oldDialog = document.getElementById(callActivity.activityId + "_dialog");
+	if(oldDialog != null)
+	{
+		oldDialog.parentNode.removeChild(oldDialog);
+	}
+	
 	// prepare the image tag
 	var image = $("<img class='map' />").attr({
 		id : callActivity.activityId + "_dialog",
@@ -117,9 +124,11 @@ function getCallActivityImageUrl(callActivity) {
  */
 function prepareAreas(callactivity) {
 	$.each(callactivity.elements, function(i, highlightElement) {
+		
+
 		var area = getArea(highlightElement);
 		$(area).attr("id", callactivity.activityId + "." + $(area).attr("id"));
-
+		
 		assertNotNull(area, "area must not be null");
 		area.appendTo("[name='" + callactivity.activityId + "_map']");
 	});
