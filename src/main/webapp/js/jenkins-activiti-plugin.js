@@ -1,4 +1,8 @@
 $(function() {
+	init();
+});
+
+function init() {
 	JenkinsActivitiPlugin.prototype.building = true;
 
 	callbackErrorAction(initDiagramImage, displayError);
@@ -9,7 +13,7 @@ $(function() {
 	registerBuildEvent();
 	registerWorkflowOptionEvent();
 	registerImageDiagramEvent();
-});
+}
 
 /**
  * Registers a click event for all elements with a build class.
@@ -192,6 +196,7 @@ function initializeMapHighlights() {
  */
 function initDiagramImage() {
 	var plugin = new JenkinsActivitiPlugin();
+
 	$("#diagram").attr("src", plugin.getImageURL());
 }
 
@@ -207,64 +212,69 @@ function renderHilighting() {
 	assertNotUndefined(processDefinitionId, "process definition is undefined");
 	assertNotUndefined(buildNumber, "build number is undefined");
 
-	getIt().getHighlightElements(processDefinitionId, buildNumber, function(t) {
-		var highlightElements = t.responseObject();
+	getIt().getHighlightElements(
+			processDefinitionId,
+			buildNumber,
+			function(t) {
+				var highlightElements = t.responseObject();
 
-		$.each(highlightElements, function(i, highlightElement) {
-			var area = getArea(highlightElement);
-			assertNotNull(area, "area must not be null");
-			area.appendTo("[name='map']");
+				$.each(highlightElements, function(i, highlightElement) {
+					var area = getArea(highlightElement);
+					assertNotNull(area, "area must not be null");
+					area.appendTo("[name='map']");
 
-			var type = highlightElement.activityType;
+					var type = highlightElement.activityType;
 
-			// SUB PROCESS ACTIVITY
-			if (type == "CALL_ACTIVITY") {
-				var builder = new ActivitiDialogBuilder();
-				var dialog = builder.buildCallActivityDialog(highlightElement);
-				assertNotNull(dialog, "dialog must not be null");
-				dialog.appendTo("#dialogwrapper");
-				prepareAreas(highlightElement);
-				initializeMapHighlights();
-			}
+					// SUB PROCESS ACTIVITY
+					if (type == "CALL_ACTIVITY") {
+						var builder = new ActivitiDialogBuilder();
+						var dialog = builder
+								.buildCallActivityDialog(highlightElement);
+						assertNotNull(dialog, "dialog must not be null");
+						dialog.appendTo("#dialogwrapper");
+						prepareAreas(highlightElement);
+						initializeMapHighlights();
+					}
 
-			// TASK Activity
-			else if (type == "TASK") {
+					// TASK Activity
+					else if (type == "TASK") {
 
-				var taskType = highlightElement.taskType;
+						var taskType = highlightElement.taskType;
 
-				// prepare the user task dialog
-				if (taskType == "USER_TASK") {
-					var builder = new ActivitiDialogBuilder();
-					builder.appendUserTaskDialog(highlightElement, "#dialogwrapper");
-				} 
-				
-				// prepare the task dialog
-				else {
-					var dialog = getDialog(highlightElement);
-					assertNotNull(dialog, "dialog must not be null");
-					dialog.appendTo("#dialogwrapper");
-				}
-				
-			}
+						// prepare the user task dialog
+						if (taskType == "USER_TASK") {
+							var builder = new ActivitiDialogBuilder();
+							builder.appendUserTaskDialog(highlightElement,
+									"#dialogwrapper");
+						}
 
-			// DEFAULT Activity
-			else {
-				var dialog = getDialog(highlightElement);
-				assertNotNull(dialog, "dialog must not be null");
-				dialog.appendTo("#dialogwrapper");
-			}
+						// prepare the task dialog
+						else {
+							var dialog = getDialog(highlightElement);
+							assertNotNull(dialog, "dialog must not be null");
+							dialog.appendTo("#dialogwrapper");
+						}
 
-		});
+					}
 
-		// register click event
-		$(".opener").click(function() {
-			var dialog = $("#" + this.id + "_dialog");
-			dialog.dialog("open");
-		});
+					// DEFAULT Activity
+					else {
+						var dialog = getDialog(highlightElement);
+						assertNotNull(dialog, "dialog must not be null");
+						dialog.appendTo("#dialogwrapper");
+					}
 
-		display();
-		async(initializeDialogs);
-	});
+				});
+
+				// register click event
+				$(".opener").click(function() {
+					var dialog = $("#" + this.id + "_dialog");
+					dialog.dialog("open");
+				});
+
+				display(false);
+				async(initializeDialogs);
+			});
 }
 
 /**
@@ -511,9 +521,9 @@ function prepareLink(highlightElement) {
 }
 
 // documentation
-function display() {
+function display(update) {
 
-	if (JenkinsActivitiPlugin.prototype.building) {
+	if (JenkinsActivitiPlugin.prototype.building || update) {
 		updateStates();
 	}
 	var bool = JenkinsActivitiPlugin.prototype.displayed;
@@ -584,12 +594,14 @@ function displayError(error) {
 	async(initializeDialogs);
 }
 
+var oncemore = 0;
+
 // TODO: documentation
 function displayContinuous() {
 
 	var plugin = new JenkinsActivitiPlugin();
 
-	if (plugin.isBuilding() && !plugin.hasError) {
+	if (plugin.isBuilding() && !plugin.hasError || 30 > oncemore) {
 		var buildNumber = getBuildNumber();
 
 		assertNotUndefined(buildNumber, "build number is undefined");
@@ -598,17 +610,15 @@ function displayContinuous() {
 			var building = t.responseObject();
 			JenkinsActivitiPlugin.prototype.building = building;
 
-			if (building) {
-				display();
-			} else {
-				renderSuccessArea();
-				renderFailureArea();
-				renderRunningArea(true);
-			}
-
+			display(true);
 			updateWorkflowDropdown(buildNumber, false);
 		});
 
+	} else {
+		if (35 > oncemore) // prevent out of memory after 1.7976931348623157e+308 sec. ;)
+		{
+			oncemore++;
+		}
 	}
 	setTimeout(displayContinuous, "1000");
 }
