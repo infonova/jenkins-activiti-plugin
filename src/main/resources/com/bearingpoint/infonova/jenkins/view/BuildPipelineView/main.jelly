@@ -10,6 +10,38 @@
     <link media="screen" type="text/css" href="${rootURL}/plugin/jenkins-activiti-plugin/css/jquery-ui.css" rel="stylesheet" />
 	
 	<!-- Javascript -->
+	<script type="text/javascript">
+		
+		function reloadIMG(img)
+		{
+			var plugin = new JenkinsActivitiPlugin();
+			var url =document.URL;
+			
+			
+			var urlarr = url.split("?retry=");
+			var retry = 0;
+			
+			
+			if(urlarr.length >1)
+			{
+				retry = parseInt(urlarr[1]);
+			}
+				
+			if(10>retry)
+			{
+				document.getElementById("projectname").innerHTML = "loading... ";
+				$(img).remove();
+				retry++;
+				setTimeout(function(){  window.location.href=urlarr[0]+"?retry="+retry;}, 250);	
+			}
+			else
+			{
+				document.getElementById("projectname").innerHTML = "Fehler beim laden des Diagramms, läuft der workflow in einem freien Slot?";
+			}
+							
+		}
+	</script>
+	
 	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/jquery-1.9.1.min.js"></script>
 	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/jquery.maphilight.js"></script>
 	<script type="text/javascript" src="${rootURL}/plugin/jenkins-activiti-plugin/js/jenkins-activiti-dialogbuilder.js"></script>
@@ -35,8 +67,9 @@
 		<!-- Process definition id -->
 		<input id="processDefinitionId" type="hidden" value="${it.getFirstProcessDefinitionId(it.latestBuild.number)}" />
 		
+		
 		<div id="processmonitorheader">
-			<h1>Jenkins Process Viewer</h1>
+			<h1 id="jpvh">Jenkins Process Viewer</h1>
 		</div>
 		<div id="tabs">
 		
@@ -79,7 +112,7 @@
 					<div id="errors"></div>
 
 					<div id="diagram-image">
-						<img id="diagram" src="" border="0" usemap="#map" class="map" />
+						<img id="diagram" onerror="reloadIMG(this);" border="0" usemap="#map" class="map" />
 						<map name="map"></map>
 					</div>
 				</div>
