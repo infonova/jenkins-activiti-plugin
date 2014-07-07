@@ -11,9 +11,10 @@
 	
 	<!-- Javascript -->
 	<script type="text/javascript">
-		
-		function reloadIMG(img)
+	
+		function reloadPage()
 		{
+			var img =$("#diagram");
 			var plugin = new JenkinsActivitiPlugin();
 			var url =document.URL;
 			
@@ -27,16 +28,20 @@
 				retry = parseInt(urlarr[1]);
 			}
 				
-			if(10>retry)
+			if(0>retry)
+			{
+		
+			}			
+			else if(10>retry)
 			{
 				document.getElementById("projectname").innerHTML = "loading... ";
 				$(img).remove();
 				retry++;
-				setTimeout(function(){  window.location.href=urlarr[0]+"?retry="+retry;}, 250);	
+				setTimeout(function(){  window.location.href=urlarr[0]+"?retry="+retry;}, 500);	
 			}
 			else
 			{
-				document.getElementById("projectname").innerHTML = "Fehler beim laden des Diagramms, läuft der workflow in einem freien Slot?";
+				document.getElementById("projectname").innerHTML = "Fehler beim laden des Diagramms";
 			}
 							
 		}
@@ -112,7 +117,7 @@
 					<div id="errors"></div>
 
 					<div id="diagram-image">
-						<img id="diagram" onerror="reloadIMG(this);" border="0" usemap="#map" class="map" />
+						<img id="diagram" border="0" usemap="#map" class="map" />
 						<map name="map"></map>
 					</div>
 				</div>
