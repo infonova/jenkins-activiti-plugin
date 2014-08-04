@@ -51,16 +51,19 @@ public class ActivitiAccessor {
 	 * @param processDefinitionId
 	 * @return ProcessDefinition
 	 */
-	public static ProcessDefinition getProcessDefinitionById(String processDefinitionId) {
+	public static ProcessDefinition getProcessDefinitionById(
+			String processDefinitionId) {
 
 		logger.info("get process definition by id " + processDefinitionId);
 
-		return getProcessEngine().getRepositoryService().createProcessDefinitionQuery()
+		return getProcessEngine().getRepositoryService()
+				.createProcessDefinitionQuery()
 				.processDefinitionId(processDefinitionId).singleResult();
 	}
 
 	// TODO: javadoc
-	public static ProcessDefinitionEntity getProcessDefinitionEntity(String processDefinitionId) {
+	public static ProcessDefinitionEntity getProcessDefinitionEntity(
+			String processDefinitionId) {
 		RepositoryServiceImpl repositoryService = (RepositoryServiceImpl) ActivitiAccessor
 				.getProcessEngine().getRepositoryService();
 
@@ -79,8 +82,8 @@ public class ActivitiAccessor {
 	 * @param build
 	 *            the aborted build
 	 */
-	public static void deleteAbortedBuildExecution(ProcessEngine engine, String processId,
-			AbstractBuild<?, ?> build) {
+	public static void deleteAbortedBuildExecution(ProcessEngine engine,
+			String processId, AbstractBuild<?, ?> build) {
 
 		if (processId == null) {
 			return;
@@ -91,8 +94,8 @@ public class ActivitiAccessor {
 		Execution execution = query.processInstanceId(processId).singleResult();
 
 		if (execution != null) {
-			runtimeService
-					.deleteProcessInstance(processId, build.getFullDisplayName() + " aborted");
+			runtimeService.deleteProcessInstance(processId,
+					build.getFullDisplayName() + " aborted");
 		}
 	}
 
@@ -113,23 +116,46 @@ public class ActivitiAccessor {
 		RepositoryService repositoryService = engine.getRepositoryService();
 
 		// deploy the BPMN process
-		DeploymentBuilder deploymentBuilder = repositoryService.createDeployment();
+		DeploymentBuilder deploymentBuilder = repositoryService
+				.createDeployment();
 
 		File file = new File(diagram.getRemote());
-		deploymentBuilder.addInputStream(diagram.getBaseName() + ".xml", new FileInputStream(file));
+		deploymentBuilder.addInputStream(diagram.getBaseName() + ".xml",
+				new FileInputStream(file));
 		deploymentBuilder.name(diagram.getBaseName());
 		Deployment deployment = deploymentBuilder.deploy();
 
 		// return the BPMN process execution id
-		ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery();
+		ProcessDefinitionQuery query = repositoryService
+				.createProcessDefinitionQuery();
+
+		return query.deploymentId(deployment.getId()).singleResult().getId();
+	}
+
+	public static String deployProcessFromDiagramFile(ProcessEngine engine,
+			File diagram) throws FileNotFoundException {
+		// get the repository service
+		RepositoryService repositoryService = engine.getRepositoryService();
+
+		// deploy the BPMN process
+		DeploymentBuilder deploymentBuilder = repositoryService
+				.createDeployment();
+		deploymentBuilder.addInputStream(diagram.getName() ,
+				new FileInputStream(diagram));
+		deploymentBuilder.name(diagram.getName());
+		Deployment deployment = deploymentBuilder.deploy();
+
+		// return the BPMN process execution id
+		ProcessDefinitionQuery query = repositoryService
+				.createProcessDefinitionQuery();
 
 		return query.deploymentId(deployment.getId()).singleResult().getId();
 	}
 
 	/**
 	 * Completes the task with the given id in order to continue the process
-	 * execution. For example by user tasks.
-	 * <br /><br />
+	 * execution. For example by user tasks. <br />
+	 * <br />
 	 * Continues the current blocking ACTIVITI user task with the given activity
 	 * id executed by the process with the given process id.
 	 * 
@@ -141,8 +167,8 @@ public class ActivitiAccessor {
 		TaskService service = getProcessEngine().getTaskService();
 		TaskQuery query = service.createTaskQuery();
 
-		Task task = query.processDefinitionId(processDefinitionId).taskDefinitionKey(taskId)
-				.singleResult();
+		Task task = query.processDefinitionId(processDefinitionId)
+				.taskDefinitionKey(taskId).singleResult();
 		service.complete(task.getId());
 
 	}

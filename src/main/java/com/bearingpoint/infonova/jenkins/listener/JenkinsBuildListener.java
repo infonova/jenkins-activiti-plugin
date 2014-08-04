@@ -9,6 +9,9 @@ import hudson.model.listeners.RunListener;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.swing.JOptionPane;
+
+import org.activiti.engine.ActivitiOptimisticLockingException;
 import org.activiti.engine.ProcessEngine;
 import org.activiti.engine.RuntimeService;
 import org.apache.log4j.Logger;
@@ -46,7 +49,33 @@ public class JenkinsBuildListener extends RunListener<Run> {
 		Map<String, Object> variables = new HashMap<String, Object>();
 		variables.put("result", result.toString());
 
-		runtimeService.signal(executionId, variables);
+		trySignal(runtimeService, executionId, variables, 0);
 
+	}
+	
+	private void trySignal(RuntimeService runtimeService, String executionId, Map<String, Object> variables, int retry)
+	{
+		if(retry < 2) //try 2 times with Exception handling
+		{
+			try
+			{
+				runtimeService.signal(executionId, variables);
+			}
+			catch(ActivitiOptimisticLockingException e)
+			{
+				try {
+					Thread.sleep(500);
+					trySignal(runtimeService, executionId, variables, retry+1);
+				} catch (InterruptedException e1) {
+					
+				}
+				
+			}	
+		}
+		else
+		{
+			// the third time without (for output)
+			runtimeService.signal(executionId, variables);
+		}
 	}
 }

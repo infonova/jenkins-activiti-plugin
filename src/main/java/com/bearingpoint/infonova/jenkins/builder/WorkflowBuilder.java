@@ -10,6 +10,8 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -20,6 +22,8 @@ import javax.servlet.ServletException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.bearingpoint.infonova.jenkins.activiti.ActivitiProcessExecution;
+import com.bearingpoint.infonova.jenkins.remoting.ActivitiDeploymentFileCallable;
 import com.bearingpoint.infonova.jenkins.remoting.ActivitiFileCallable;
 
 /**
@@ -51,7 +55,27 @@ public class WorkflowBuilder extends Builder {
 
         try {
             final FilePath workspace = build.getWorkspace();
-            return workspace.act(new ActivitiFileCallable(listener, build, pathToWorkflow));
+            FilePath workflow = workspace.child(pathToWorkflow);
+            File wFile = new File("/tmp/"+pathToWorkflow);
+            workflow.copyTo(new FileOutputStream(wFile));
+            
+            ActivitiProcessExecution ape = new ActivitiProcessExecution(listener, build, pathToWorkflow);
+            
+            
+            //execut, running on master
+            boolean continueBuild = ape.executeActivitProcess(wFile);
+            
+            //delete file from master
+            wFile.delete();            
+            
+            return continueBuild;
+            
+            /// #### not working remoting ####
+            //ActivitiFileCallable afc = new ActivitiFileCallable(listener, build, pathToWorkflow);
+            
+            //return afc.invoke(wFile.getParentFile(), workspace.getChannel());
+            //return true;
+            //return workspace.act(new ActivitiFileCallable(listener, build, pathToWorkflow));
         } catch (Exception o_O) {
 
             // write the stacktrace into a string

@@ -10,17 +10,22 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.bearingpoint.infonova.jenkins.activiti.ActivitiDeploymentProcessExecution;
 import com.bearingpoint.infonova.jenkins.remoting.ActivitiDeploymentFileCallable;
+import com.bearingpoint.infonova.jenkins.util.JenkinsUtils;
 
 /**
  * {@link Builder} implementation used to deploy a activiti workflow. This
@@ -50,7 +55,22 @@ public class WorkflowDeploymentBuilder extends Builder {
 
         try {
             final FilePath workspace = build.getWorkspace();
-            return workspace.act(new ActivitiDeploymentFileCallable(listener, build, pathToWorkflow));
+            
+            //get xml file from slave
+            FilePath workflow = workspace.child(pathToWorkflow);
+            File wFile = new File("/tmp/"+pathToWorkflow);
+            workflow.copyTo(new FileOutputStream(wFile));
+            
+            ActivitiDeploymentProcessExecution adfc = new ActivitiDeploymentProcessExecution(listener, build, pathToWorkflow);
+            
+            //execut, running on master
+            boolean continueBuild = adfc.executeActivityDeployment(wFile);
+            
+            //delete file from master
+            wFile.delete();            
+            
+            return continueBuild;
+            
         } catch (Exception o_O) {
 
             // write the stacktrace into a string

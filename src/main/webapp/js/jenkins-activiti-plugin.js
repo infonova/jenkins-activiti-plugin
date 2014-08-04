@@ -197,7 +197,14 @@ function initializeMapHighlights() {
 function initDiagramImage() {
 	var plugin = new JenkinsActivitiPlugin();
 
-	$("#diagram").attr("src", plugin.getImageURL());
+	if(endsWith(plugin.getImageURL(), "unknown"))	{
+		 reloadPage();	
+	}	
+	else
+	{
+		$("#diagram").attr("src", plugin.getImageURL());
+	}
+	
 }
 
 /**
@@ -771,4 +778,8 @@ JenkinsActivitiPlugin.prototype.getBaseURL = function(rootURL) {
 	var baseURL = location.substr(0, location.indexOf(rootURL + "/"));
 
 	return baseURL + rootURL;
+}
+
+function endsWith(str, suffix) {
+    return str.indexOf(suffix, str.length - suffix.length) !== -1;
 }
