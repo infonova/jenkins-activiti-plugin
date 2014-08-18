@@ -21,11 +21,12 @@ function init() {
 function registerBuildEvent() {
 	$(".build").click(function() {
 		JenkinsActivitiPlugin.prototype.building = true;
-
+		
 		// update hidden text fields
 		setBuildNumber(this.id);
 
 		cleanupUI();
+		
 		callbackErrorAction(function() {
 			updateWorkflowDropdown(getBuildNumber(), true);
 		}, displayError);
@@ -189,6 +190,7 @@ function initializeMapHighlights() {
 	});
 }
 
+	var retry = 0;
 /**
  * Initializes the diagram image. Renders the latest build diagram.
  * 
@@ -197,11 +199,17 @@ function initializeMapHighlights() {
 function initDiagramImage() {
 	var plugin = new JenkinsActivitiPlugin();
 
-	if(endsWith(plugin.getImageURL(), "unknown"))	{
-		 reloadPage();	
-	}	
-	else
+	if(retry >10)
 	{
+		var error = new Object();
+		error.errorCode = "Could not find diagram, either the build was aborted too early or try a refresh"
+		displayError(error);
+	}	
+	else if(endsWith(plugin.getImageURL(), "unknown"))	{	
+		retry++;
+		setTimeout(function(){  initDiagramImage(); }, 500);	
+	}	
+	else	{
 		$("#diagram").attr("src", plugin.getImageURL());
 	}
 	
@@ -367,7 +375,13 @@ function callbackErrorAction(success, failure) {
  * @returns area element
  */
 function getArea(highlightElement) {
-
+	var oldArea = document.getElementById(highlightElement.activityId);
+	
+	if(oldArea != null)
+	{
+		oldArea.parentNode.removeChild(oldDialog);
+	}
+	
 	return $('<area/>').attr({
 		id : highlightElement.activityId,
 		name : highlightElement.state.toLowerCase(),
@@ -582,7 +596,6 @@ function displayError(error) {
 	changeDiagramImage(getEmptyPicture());
 
 	var div = $("#errors");
-
 	var h3 = $("<h3/>").html("Error code: " + error.errorCode);
 	var anchor = $("<a/>").html("Error message").attr({
 		href : "#" + error.errorCode
@@ -638,8 +651,18 @@ function updateWorkflowDropdown(buildNr, init) {
 		var workflows = t.responseObject();
 
 		if (init) {
-			// update the hidden process definition id input element
-			var id = workflows[0].processDescriptionId;
+			var id;
+			try
+			{
+				// update the hidden process definition id input element
+			 	id= workflows[0].processDescriptionId;
+			} catch (e) {
+				var error = new Object();
+				error.errorCode="This build was aborted too early for showing the correct diagram"
+				displayError(error);
+			}
+			
+			
 			setProcessDefinitionId(id);
 
 			// rebuild the workflow select element
