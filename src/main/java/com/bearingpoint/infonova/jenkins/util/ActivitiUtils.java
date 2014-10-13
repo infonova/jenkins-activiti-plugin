@@ -131,7 +131,7 @@ public final class ActivitiUtils {
 
         Assert.notNull(deploymentId, ErrorCode.ACTIVITI01);
         Assert.notNull(resourceName, ErrorCode.ACTIVITI02);
-
+        
         return repoService.getResourceAsStream(deploymentId, resourceName);
     }
 

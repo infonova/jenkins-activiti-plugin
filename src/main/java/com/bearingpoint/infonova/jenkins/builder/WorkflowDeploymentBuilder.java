@@ -53,22 +53,18 @@ public class WorkflowDeploymentBuilder extends Builder {
     @Override
     public boolean perform(final AbstractBuild<?, ?> build, final Launcher launcher, final BuildListener listener) {
 
-        try {
-            final FilePath workspace = build.getWorkspace();
-            
-            //get xml file from slave
-            FilePath workflow = workspace.child(pathToWorkflow);
-            File wFile = new File("/tmp/"+pathToWorkflow);
-            workflow.copyTo(new FileOutputStream(wFile));
-            
+        try {            
+        	//getting workflow from Slave
+            File wFile = BuilderHelper.getWorkflowFromSlave(build, pathToWorkflow);
+      
             ActivitiDeploymentProcessExecution adfc = new ActivitiDeploymentProcessExecution(listener, build, pathToWorkflow);
             
-            //execut, running on master
+            //execute, running on master
             boolean continueBuild = adfc.executeActivityDeployment(wFile);
             
-            //delete file from master
-            wFile.delete();            
-            
+            //cleanup files on Master
+            BuilderHelper.deleteWfFoldersOnMaster(wFile);
+              
             return continueBuild;
             
         } catch (Exception o_O) {

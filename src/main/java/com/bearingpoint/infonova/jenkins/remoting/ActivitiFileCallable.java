@@ -86,7 +86,7 @@ public class ActivitiFileCallable implements FileCallable<Boolean> {
         DestructionCallbacks callbacks = new DestructionCallbacks();
 
         try {
-            Assert.isTrue(StringUtils.endsWith(diagram.getName(), ".bpmn20.xml"), ErrorCode.ACTIVITI04);
+            Assert.isTrue(StringUtils.endsWith(diagram.getName(), ".bpmn"), ErrorCode.ACTIVITI04);
 
             // deploy the BPMN process
             log(logger, "deploy BPMN process: " + diagram.getRemote());
@@ -242,9 +242,9 @@ public class ActivitiFileCallable implements FileCallable<Boolean> {
 
         if (StringUtils.contains(pathToWorkflow, File.separator)) {
             String workflowName = StringUtils.substringAfterLast(pathToWorkflow, File.separator);
-            return StringUtils.substringBefore(workflowName, ".bpmn20.xml");
+            return StringUtils.substringBefore(workflowName, ".bpmn");
         }
-        return StringUtils.substringBefore(pathToWorkflow, ".bpmn20.xml");
+        return StringUtils.substringBefore(pathToWorkflow, ".bpmn");
     }
 
 }

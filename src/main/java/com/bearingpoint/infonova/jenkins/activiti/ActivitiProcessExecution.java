@@ -52,7 +52,7 @@ import com.bearingpoint.infonova.jenkins.util.JenkinsUtils;
 import com.bearingpoint.infonova.jenkins.util.callback.StoreMetadataCallback;
 
 /**
- * {@link FileCallable} instance for remote ACTIVITI process execution.
+ * {@link FileCallable} instance for ACTIVITI process execution.
  * 
  * @author christian.weber
  * @since 1.0
@@ -88,7 +88,7 @@ public class ActivitiProcessExecution {
 
 		try {
 			Assert.isTrue(
-					StringUtils.endsWith(diagram.getName(), ".bpmn20.xml"),
+					StringUtils.endsWith(diagram.getName(), ".bpmn"),
 					ErrorCode.ACTIVITI04);
 
 			// deploy the BPMN process
@@ -101,7 +101,7 @@ public class ActivitiProcessExecution {
 			Map<String, Object> variables = JenkinsUtils
 					.getEnvironmentVars(build);
 			ActivitiUtils.prepareDataAssociation(processId, variables.keySet());
-
+			
 			// start the BPMN process
 			log(logger, "start BPMN process: " + diagram.getName());
 			RuntimeService runtimeService = engine.getRuntimeService();
@@ -207,6 +207,7 @@ public class ActivitiProcessExecution {
 
 		ActivitiUtils.addActivityProperties(processDefinitionId, properties);
 		checkIfJobsExist(build);
+		
 		// add activity execution listeners
 		ActivitiUtils.addActivityListeners(processDefinitionId,
 				getExecutionListeners(action, callbacks));
@@ -254,9 +255,9 @@ public class ActivitiProcessExecution {
 		if (StringUtils.contains(pathToWorkflow, File.separator)) {
 			String workflowName = StringUtils.substringAfterLast(
 					pathToWorkflow, File.separator);
-			return StringUtils.substringBefore(workflowName, ".bpmn20.xml");
+			return StringUtils.substringBefore(workflowName, ".bpmn");
 		}
-		return StringUtils.substringBefore(pathToWorkflow, ".bpmn20.xml");
+		return StringUtils.substringBefore(pathToWorkflow, ".bpmn");
 	}
 
 	private boolean checkIfJobsExist(AbstractBuild build)

@@ -11,6 +11,7 @@ import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -54,19 +55,16 @@ public class WorkflowBuilder extends Builder {
     public boolean perform(final AbstractBuild<?, ?> build, final Launcher launcher, final BuildListener listener) {
 
         try {
-            final FilePath workspace = build.getWorkspace();
-            FilePath workflow = workspace.child(pathToWorkflow);
-            File wFile = new File("/tmp/"+pathToWorkflow);
-            workflow.copyTo(new FileOutputStream(wFile));
+        	//getting WF
+            File wFile = BuilderHelper.getWorkflowFromSlave(build, pathToWorkflow);      
             
             ActivitiProcessExecution ape = new ActivitiProcessExecution(listener, build, pathToWorkflow);
             
-            
-            //execut, running on master
+            //execute, running on master
             boolean continueBuild = ape.executeActivitProcess(wFile);
             
-            //delete file from master
-            wFile.delete();            
+            //do cleanup
+            BuilderHelper.deleteWfFoldersOnMaster(wFile);
             
             return continueBuild;
             
@@ -89,6 +87,8 @@ public class WorkflowBuilder extends Builder {
             return false;
         }
     }
+
+
 
     @Override
     public DescriptorImpl getDescriptor() {

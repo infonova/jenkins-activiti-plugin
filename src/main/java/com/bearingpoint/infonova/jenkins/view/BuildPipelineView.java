@@ -3,6 +3,7 @@ package com.bearingpoint.infonova.jenkins.view;
 import static com.bearingpoint.infonova.jenkins.util.JenkinsUtils.getProjectAction;
 import static com.bearingpoint.infonova.jenkins.util.JenkinsUtils.getProjectActions;
 import hudson.Extension;
+import hudson.model.AbstractProject;
 import hudson.model.Action;
 import hudson.model.Item;
 import hudson.model.TopLevelItem;
@@ -12,6 +13,7 @@ import hudson.model.Project;
 import hudson.model.View;
 import hudson.model.ViewDescriptor;
 import hudson.util.ListBoxModel;
+import hudson.util.RunList;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletException;
+import javax.swing.JOptionPane;
 
 import jenkins.model.Jenkins;
 
@@ -175,7 +178,8 @@ public class BuildPipelineView extends View {
      */
     @JavaScriptMethod
     public Integer getBuildNumber(String processDefinitionId, String projectName) {
-        return JenkinsUtils.getBuildNumberByProcessDefinitionId(processDefinitionId, projectName);
+    	
+    	return JenkinsUtils.getBuildNumberByProcessDefinitionId(processDefinitionId, projectName);
     }
 
     /**
@@ -186,8 +190,26 @@ public class BuildPipelineView extends View {
      */
     @JavaScriptMethod
     public boolean isBuilding(int buildNr) {
-        Project<?, ?> project = JenkinsUtils.getProject(projectName);
-        AbstractBuild<?, ?> build = project.getBuildByNumber(buildNr);
+    	Object projectOrAbstractProjectObj = JenkinsUtils.getProjectOrAbstractProject(projectName);
+    	AbstractBuild<?, ?> build = null;
+    	
+    	if(projectOrAbstractProjectObj instanceof Project<?, ?>)
+    	{
+    		Project<?, ?> project = (Project<?, ?>) projectOrAbstractProjectObj;
+    		build = project.getBuildByNumber(buildNr);
+    		
+    	} else if (projectOrAbstractProjectObj instanceof AbstractProject<?, ?>)
+    	{
+    		//for maven project
+    		AbstractProject<?, ?> absproject = (AbstractProject<?, ?>) projectOrAbstractProjectObj;
+    		build = absproject.getBuildByNumber(buildNr);
+    	}
+    	
+    	if(build == null)
+    	{
+    		return false;
+    	}
+    		
 
         return build.isBuilding();
     }
