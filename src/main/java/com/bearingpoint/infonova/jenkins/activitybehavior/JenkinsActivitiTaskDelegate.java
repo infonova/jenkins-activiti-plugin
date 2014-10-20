@@ -60,83 +60,79 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 	private Expression jobResultCondition;
 
 	@Override
-	public void execute(ActivityExecution execution) {
-		try {
+	public void execute(ActivityExecution execution) throws Exception {
 
-			PvmActivity activity = execution.getActivity();
-			String activityId = activity.getId();
-			String processDefinitionId = activity.getProcessDefinition()
-					.getId();
+		PvmActivity activity = execution.getActivity();
+		String activityId = activity.getId();
+		String processDefinitionId = activity.getProcessDefinition().getId();
 
-			PvmProcessDefinition pDef = activity.getProcessDefinition();
+		PvmProcessDefinition pDef = activity.getProcessDefinition();
 
-			logger.info("execution.id                    : "
-					+ execution.getId());
-			logger.info("execution.activity.id           : " + activityId);
-			logger.info("execution.activity.process.id   : " + pDef.getId());
-			logger.info("execution.activity.process.name : " + pDef.getName());
+		logger.info("execution.id                    : " + execution.getId());
+		logger.info("execution.activity.id           : " + activityId);
+		logger.info("execution.activity.process.id   : " + pDef.getId());
+		logger.info("execution.activity.process.name : " + pDef.getName());
 
-			if (jobName != null) {
-				String jobNameValue = (String) jobName.getValue(execution);
+		if (jobName != null) {
+			String jobNameValue = (String) jobName.getValue(execution);
 
-				Jenkins jenkins = Jenkins.getInstance();
-				TopLevelItem item = jenkins.getItem(jobNameValue);
+			Jenkins jenkins = Jenkins.getInstance();
+			TopLevelItem item = jenkins.getItem(jobNameValue);
 
-				if (item == null) {
-					logger.error("no jenkins job found");
-				} else if (item instanceof Project) {
+			if (item == null) {
+				logger.error("no jenkins job found");
+			} else if (item instanceof Project) {
 
-					Project<?, ?> project = (Project<?, ?>) item;
+				Project<?, ?> project = (Project<?, ?>) item;
 
-					final String projectName = (String) activity
-							.getProperty(ActivitiUtils.JOB_NAME_PROPERTY);
-					final int buildNr = (Integer) activity
-							.getProperty(ActivitiUtils.BUILD_NUMBER_PROPERTY);
+				final String projectName = (String) activity
+						.getProperty(ActivitiUtils.JOB_NAME_PROPERTY);
+				final int buildNr = (Integer) activity
+						.getProperty(ActivitiUtils.BUILD_NUMBER_PROPERTY);
 
-					Cause cause = new WorkflowCause(projectName, buildNr,
-							processDefinitionId, execution);
-					Action action = new ParametersAction(getDefaultParams(
-							project, execution));
-					project.scheduleBuild2(jenkins.getQuietPeriod(), cause,
-							action);
+				Cause cause = new WorkflowCause(projectName, buildNr,
+						processDefinitionId, execution);
+				Action action = new ParametersAction(getDefaultParams(project,
+						execution));
+				
+				project.scheduleBuild2(jenkins.getQuietPeriod(), cause, action);
+				
+				isJobAbbortedInQueueCheck(project, execution);
+				// avoid leaving execution
+				return;
+				
+			} else if (item instanceof MavenModuleSet) {
 
-					// avoid leaving execution
-					return;
-				} else if (item instanceof MavenModuleSet) {
+				// Maven Build Job Support
+				MavenModuleSet mavenModuleSet = (MavenModuleSet) item;
+				AbstractProject<?, ?> abstractProject = mavenModuleSet
+						.asProject();
 
-					// Maven Build Job Support
-					MavenModuleSet mavenModuleSet = (MavenModuleSet) item;
-					AbstractProject<?, ?> abstractProject = mavenModuleSet
-							.asProject();
+				final String projectName = (String) activity
+						.getProperty(ActivitiUtils.JOB_NAME_PROPERTY);
+				final int buildNr = (Integer) activity
+						.getProperty(ActivitiUtils.BUILD_NUMBER_PROPERTY);
 
-					final String projectName = (String) activity
-							.getProperty(ActivitiUtils.JOB_NAME_PROPERTY);
-					final int buildNr = (Integer) activity
-							.getProperty(ActivitiUtils.BUILD_NUMBER_PROPERTY);
+				Cause cause = new WorkflowCause(projectName, buildNr,
+						processDefinitionId, execution);
+				Action action = new ParametersAction(getDefaultParams(
+						abstractProject, execution));
+				abstractProject.scheduleBuild2(jenkins.getQuietPeriod(), cause,
+						action);
 
-					Cause cause = new WorkflowCause(projectName, buildNr,
-							processDefinitionId, execution);
-					Action action = new ParametersAction(getDefaultParams(
-							abstractProject, execution));					
-					abstractProject.scheduleBuild2(jenkins.getQuietPeriod(),
-							cause, action);
-					
-					
-					// avoid leaving execution
-					return;
-				} else {
-					logger.error("no jenkins job found");
-				}
+				isJobAbbortedInQueueCheck(abstractProject, execution);
+				// avoid leaving execution
+				return;
+				
+			} else {
+				logger.error("no jenkins job found");
 			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
-
 		// Marks the job as finished
 		leave(execution);
 	}
 
+	
 	@Override
 	public void signal(ActivityExecution execution, String signalName,
 			Object data) throws Exception {
@@ -146,18 +142,45 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 
 		// store the activity result as a property
 		ActivityImpl activity = (ActivityImpl) execution.getActivity();
-		activity.setProperty("result", (String) result.get());
-		
-		// continue the process if result is 'SUCCESS'
-		if (isSuccessful(result)) {
+
+		// continue the process if result is 'SUCCESS' or 'UNSTABLE'
+		if (isSuccessful(result) || isUnstable(result)) {
+			activity.setProperty("result", (String) result.get());
 			super.signal(execution, signalName, data);
+
+		} else{
+			failureAllParentActivities(activity);
 		}
 
+	}
+
+	private void failureAllParentActivities(ActivityImpl activity)
+			throws Exception {
+		if (activity != null) {
+			activity.setProperty("result", "FAILURE");
+
+			if (activity.getParent() != null) {
+				failureAllParentActivities(activity.getParentActivity());
+			}
+		}
 	}
 
 	private boolean isSuccessful(Optional<Object> result) {
 		try {
 			String condition = jobResultCondition == null ? "SUCCESS"
+					: jobResultCondition.getExpressionText();
+			return result.isPresent()
+					&& StringUtils.equalsIgnoreCase(result.get().toString(),
+							condition);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+	
+	private boolean isUnstable(Optional<Object> result) {
+		try {
+			String condition = jobResultCondition == null ? "UNSTABLE"
 					: jobResultCondition.getExpressionText();
 			return result.isPresent()
 					&& StringUtils.equalsIgnoreCase(result.get().toString(),
@@ -180,65 +203,7 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 		ParametersDefinitionProperty property = (ParametersDefinitionProperty) project
 				.getProperty(ParametersDefinitionProperty.class);
 
-		List<ParameterValue> values = new ArrayList<ParameterValue>();
-
-		if (property == null) {
-			return values;
-		}
-
-		Set<String> keys = new HashSet<String>();
-
-		// add the job variables configured by the process definition
-		Map<String, String> variables = getVariablesMap();
-		for (String key : variables.keySet()) {
-
-			// continue when parameter is already registered
-			if (keys.contains(key)) {
-				continue;
-			}
-
-			ParameterDefinition def = parameterDefinition(key, property);
-			if (isBooleanParameter(def)) {
-				boolean booleanValue = BooleanUtils.toBoolean(variables
-						.get(key));
-				BooleanParameterValue value = new BooleanParameterValue(key,
-						booleanValue);
-				values.add(value);
-			} else {
-				StringParameterValue value = new StringParameterValue(key,
-						variables.get(key));
-				values.add(value);
-			}
-
-			keys.add(key);
-		}
-
-		for (ParameterDefinition def : property.getParameterDefinitions()) {
-
-			// continue when parameter is already registered
-			if (keys.contains(def.getName())) {
-				continue;
-			}
-
-			// CheckBox parameter
-			if (def instanceof ChoiceParameterDefinition) {
-				ChoiceParameterDefinition cpd = (ChoiceParameterDefinition) def;
-				values.add(getValue(cpd, execution));
-			}
-			// TextBox parameter
-			else if (def instanceof StringParameterDefinition) {
-				StringParameterDefinition spd = (StringParameterDefinition) def;
-				values.add(getValue(spd, execution));
-			}
-			// Default
-			else if (def instanceof SimpleParameterDefinition) {
-				SimpleParameterDefinition spd = (SimpleParameterDefinition) def;
-				values.add(getValue(spd, execution));
-			}
-
-		}
-
-		return values;
+		return getDefaultParametersHelper(execution, property);
 	}
 
 	private List<ParameterValue> getDefaultParams(
@@ -247,6 +212,12 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 		ParametersDefinitionProperty property = (ParametersDefinitionProperty) project
 				.getProperty(ParametersDefinitionProperty.class);
 
+		return getDefaultParametersHelper(execution, property);
+	}
+
+
+	private List<ParameterValue> getDefaultParametersHelper(
+			ActivityExecution execution, ParametersDefinitionProperty property) {
 		List<ParameterValue> values = new ArrayList<ParameterValue>();
 
 		if (property == null) {
@@ -272,18 +243,37 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 						booleanValue);
 				values.add(value);
 			} else {
-				StringParameterValue value = new StringParameterValue(key,
-						variables.get(key));
+				
+				StringParameterValue value = new StringParameterValue(key,variables.get(key));
 				values.add(value);
+				
 			}
 
 			keys.add(key);
 		}
 
+		//Environment Variables from Pipeline
 		for (ParameterDefinition def : property.getParameterDefinitions()) {
 
 			// continue when parameter is already registered
 			if (keys.contains(def.getName())) {
+				
+				String varFromActualJob = variables.get(def.getName());
+				//if ${...}
+				varFromActualJob = varFromActualJob.replace("{", "").replace("}", "");
+				
+				if(varFromActualJob.startsWith("$"))
+				{
+					varFromActualJob = varFromActualJob.replace('$', ' ').trim();
+					Set<String> variableNames = execution.getVariableNames();
+			
+						if (variableNames.contains(varFromActualJob)) {
+							String variable = (String) execution.getVariable(varFromActualJob);
+							
+							values.remove(new StringParameterValue(def.getName(),variables.get(def.getName())));
+							values.add(new StringParameterValue(def.getName(), variable));
+						}
+				}		
 				continue;
 			}
 
@@ -356,6 +346,16 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 		}
 		return def.getDefaultParameterValue();
 	}
+	
+	private ParameterValue setValue(ParameterDefinition def,
+			ActivityExecution execution, String variable) {
+		Set<String> variableNames = execution.getVariableNames();
+
+		if (variableNames.contains(def.getName())) {
+			return new StringParameterValue(def.getName(), variable);
+		}
+		return def.getDefaultParameterValue();
+	}
 
 	/**
 	 * Returns the job name.
@@ -378,5 +378,82 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 		final String parameters = variablesMap.getExpressionText();
 		return JenkinsUtils.normalizeParameters(parameters);
 	}
+	
+	private void isJobAbbortedInQueueCheck(final AbstractProject<?, ?> abstractProject, final ActivityExecution execution)
+	{
+		Thread t = new Thread(new Runnable() {
+			
+			@Override
+			public void run() {
+				//check if job is aborted in queue
+				try {
+					while (abstractProject.isInQueue()) {
+						Thread.sleep(20);
+					}
 
+					// aborted in queue if it is not building
+					if (!abstractProject.isBuilding()) {
+						throw new Exception("Job aborted in Queue");
+					}
+					
+				} catch (Exception e) {
+					
+					try {
+						failureAllParentActivities((ActivityImpl) execution.getActivity());
+					} catch (Exception e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+					e.printStackTrace();
+					return;
+				}
+				
+			}
+		},"ActivitiIsJobAbortedInQueueCheck for " +execution.getCurrentActivityName());
+		
+		t.start();
+	}
+	
+	private void isJobAbbortedInQueueCheck(final Project<?, ?> project, final ActivityExecution execution)
+	{
+		Thread t = new Thread(new Runnable() {
+			
+			@Override
+			public void run() {
+				//check if job is aborted in queue
+				try {
+					while (project.isInQueue()) {
+						Thread.sleep(20);
+					}
+
+					// aborted in queue if it is not building
+					if (!project.isBuilding()) {
+						throw new Exception("Job aborted in Queue");
+					}
+					
+				} catch (Exception e) {
+					
+					try {
+						failureAllParentActivities((ActivityImpl) execution.getActivity());
+					} catch (Exception e1) {
+						e1.printStackTrace();
+					}
+					e.printStackTrace();
+					return;
+				}
+				
+			}
+		},"ActivitiIsJobAbortedInQueueCheck for " +execution.getCurrentActivityName());
+		
+		t.start();
+	}
+
+
+	@Override
+	public String toString() {
+		return "JenkinsActivitiTaskDelegate [jobName=" + jobName + "]";
+	}
+	
+
+	
 }

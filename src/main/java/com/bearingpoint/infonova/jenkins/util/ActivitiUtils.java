@@ -380,6 +380,20 @@ public final class ActivitiUtils {
 
         return hasFailedExecutionsInternal(entity.getActivities());
     }
+    
+    /**
+     * Returns the list of failed {@link Execution} instances of the process
+     * with the given process instance id.
+     * 
+     * @param processInstanceId
+     * @return List
+     */
+    public static boolean hasUnstableExecutions(String processInstanceId) {
+
+        ProcessDefinitionEntity entity = ActivitiAccessor.getProcessDefinitionEntity(processInstanceId);
+
+        return hasUnstableExecutionsInternal(entity.getActivities());
+    }
 
     private static boolean hasFailedExecutionsInternal(List<ActivityImpl> activities) {
 
@@ -407,6 +421,41 @@ public final class ActivitiUtils {
                 Object property = activity.getProperty("result");
 
                 if (property != null && StringUtils.equals(property.toString(), "FAILURE")) {
+                    return true;
+                }
+            }
+
+        }
+
+        return false;
+    }
+    
+    private static boolean hasUnstableExecutionsInternal(List<ActivityImpl> activities) {
+
+        for (ActivityImpl activity : activities) {
+
+            // sub process handling
+            if (ActivitiUtils.isSubProcess(activity)) {
+                if (hasUnstableExecutionsInternal(activity.getActivities())) {
+                    return true;
+                }
+            }
+
+            // call activity handling
+            else if (ActivitiUtils.isCallActivity(activity)) {
+                String key = (String)activity.getProperty(CustomCallActivityParseHandler.CALLACTIVITY_PROPERTY);
+                ProcessDefinition definition = ActivitiUtils.getCallActivity(key);
+                ProcessDefinitionEntity entity = ActivitiAccessor.getProcessDefinitionEntity(definition.getId());
+
+                if (hasUnstableExecutionsInternal(entity.getActivities())) {
+                    return true;
+                }
+            }
+
+            else {
+                Object property = activity.getProperty("result");
+
+                if (property != null && StringUtils.equals(property.toString(), "UNSTABLE")) {
                     return true;
                 }
             }
@@ -471,6 +520,7 @@ public final class ActivitiUtils {
 
         // TODO: return failed task names
         boolean hasFailedExecutions = false;
+        
         do {
             // logger.debug("wait for process finalization for process with id " + processInstanceId);
 

@@ -12,14 +12,20 @@ import java.util.Observable;
 import java.util.Observer;
 
 import org.activiti.engine.delegate.DelegateExecution;
+import org.activiti.engine.impl.bpmn.behavior.CallActivityBehavior;
+import org.activiti.engine.impl.bpmn.behavior.ServiceTaskJavaDelegateActivityBehavior;
+import org.activiti.engine.impl.bpmn.helper.ClassDelegate;
+import org.activiti.engine.impl.bpmn.helper.ClassDelegateUtil;
 import org.activiti.engine.impl.persistence.entity.ExecutionEntity;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
+import com.bearingpoint.infonova.jenkins.activitybehavior.JenkinsActivitiTaskDelegate;
 import com.bearingpoint.infonova.jenkins.listener.ActivityEndListener;
 import com.bearingpoint.infonova.jenkins.listener.ActivityStartListener;
 import com.bearingpoint.infonova.jenkins.ui.AbstractArea;
 import com.bearingpoint.infonova.jenkins.ui.CallActivityTaskHighlight;
+import com.bearingpoint.infonova.jenkins.ui.JenkinsActivitiTaskHighlight;
 import com.bearingpoint.infonova.jenkins.ui.TaskState;
 import com.bearingpoint.infonova.jenkins.util.ActivityMetadata;
 import com.bearingpoint.infonova.jenkins.util.DestructionCallback;
@@ -175,6 +181,9 @@ public class ActivitiWorkflowAction implements Action, Observer, DestructionCall
 			if (TaskState.RUNNING.compareTo(state) == 0) {
 				return TaskState.RUNNING;
 			}
+			if (TaskState.UNSTABLE.compareTo(state) == 0) {
+				return TaskState.UNSTABLE;
+			}
 		}
 		return TaskState.SUCCESS;
 	}
@@ -213,9 +222,38 @@ public class ActivitiWorkflowAction implements Action, Observer, DestructionCall
 			// updata metadata
 			metadata.storeStart(executionEntity);
 		} else if (o instanceof ActivityEndListener) {
-			log("activity " + executionEntity.getActivityId() + " finished");
-			updateState(executionEntity, TaskState.SUCCESS);
-
+			
+			if(executionEntity.getActivity().getActivityBehavior() instanceof CallActivityBehavior)
+			{
+				AbstractArea abstractArea = getAbstractAreaByActivitiID(executionEntity.getActivityId());
+				
+				if(abstractArea != null)
+				{
+					if(isCallActivitiUnstable((CallActivityTaskHighlight) abstractArea))
+					{
+						executionEntity.getActivity().setProperty("result", "UNSTABLE");
+					}
+				}
+			}
+				log("activity " + executionEntity.getActivityId() + " finished");
+			try {
+				Object result = executionEntity.getActivity().getProperty(
+						"result");
+				if (result != null) {
+					if (TaskState.UNSTABLE.toString().compareTo(
+							("" + result).toLowerCase()) == 0) {
+						updateState(executionEntity, TaskState.UNSTABLE);
+					} else {
+						updateState(executionEntity, TaskState.SUCCESS);
+					}
+				} else {
+					updateState(executionEntity, TaskState.SUCCESS);
+				}
+			} catch (Exception e) {
+				updateState(executionEntity, TaskState.SUCCESS);
+				e.printStackTrace();
+			}
+		
 			// updata metadata
 			metadata.storeEnd(executionEntity);
 		}
@@ -226,6 +264,43 @@ public class ActivitiWorkflowAction implements Action, Observer, DestructionCall
 	 */
 	private void updateState(ExecutionEntity entity, TaskState state) {
 		updateStateRecursive(elements, entity, state);
+	}
+	
+	private boolean isCallActivitiUnstable(CallActivityTaskHighlight callactiviti)
+	{
+		for(AbstractArea abstractArea : callactiviti.getElements())
+		{
+			if(abstractArea instanceof JenkinsActivitiTaskHighlight)
+			{
+				if(abstractArea.getState().equals(TaskState.UNSTABLE))
+				{
+					return true;
+				}				
+			} else if(abstractArea instanceof CallActivityTaskHighlight)
+			{
+				if(isCallActivitiUnstable((CallActivityTaskHighlight) abstractArea))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * Returns an AbstractArea found by the given ActivitiID
+	 */
+	private AbstractArea getAbstractAreaByActivitiID(String strID)
+	{
+		for(AbstractArea abstractAres : getElements())
+		{
+			if (abstractAres.getActivityId().equals(strID))
+			{
+				return abstractAres;
+			}			
+		}
+		
+		return null;
 	}
 
 	private void updateStateRecursive(List<AbstractArea> areas, ExecutionEntity entity,

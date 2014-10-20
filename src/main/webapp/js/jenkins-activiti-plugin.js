@@ -382,14 +382,18 @@ function getArea(highlightElement) {
 		oldArea.parentNode.removeChild(oldDialog);
 	}
 	
-	return $('<area/>').attr({
+	var area = $('<area/>').attr({
 		id : highlightElement.activityId,
 		name : highlightElement.state.toLowerCase(),
 		shape : highlightElement.shape.toLowerCase(),
 		coords : highlightElement.coordinates,
-		href : prepareLink(highlightElement),
-		class : getAreaClass(highlightElement)
+		href : highlightElement.link,
+		class : getAreaClass(highlightElement),
 	});
+	
+	setLink(highlightElement, area);
+	
+	return area;
 }
 
 /**
@@ -513,32 +517,33 @@ function getEmptyPicture() {
  * @param link
  * @returns the prepared link
  */
-function prepareLink(highlightElement) {
+function setLink(highlightElement, area) {
 	var link = highlightElement.link;
 
 	if (link.indexOf("/") == 0) {
 		var rootURL = $("#rootURL").attr("value");
 
 		var jobName = highlightElement.jobName;
-		var processDefinitionId = getProcessDefinitionId();
-
+		var processDefinitionId = highlightElement.processId;
+		var href = null;
+		
 		assertNotUndefined(processDefinitionId, "process def is undefined");
 		assertNotUndefined(jobName, "job name is undefined");
 
 		getIt().getBuildNumber(processDefinitionId, jobName, function(t) {
 			var buildNr = t.responseObject();
-
+			
 			if (buildNr != undefined) {
-				var area = $("#" + highlightElement.activityId);
-				var href = $(area).attr("href");
-				$(area).attr("href", href + "/" + buildNr);
+				href = rootURL + link + "/" + buildNr;	
 			}
+			else
+			{
+				href = rootURL + link;
+			}
+			
+			$(area).attr("href", href );
 		});
-
-		return rootURL + link;
 	}
-
-	return link;
 }
 
 // documentation
@@ -551,6 +556,7 @@ function display(update) {
 
 	renderSuccessArea();
 	renderFailureArea();
+	renderUnstableArea();
 	renderRunningArea(bool);
 
 	JenkinsActivitiPlugin.prototype.displayed = !bool;
@@ -578,6 +584,13 @@ function renderSuccessArea() {
  */
 function renderFailureArea() {
 	renderArea("failure", true, "ff0000");
+}
+
+/**
+ * Renders all area elements which are in failure state.
+ */
+function renderUnstableArea() {
+	renderArea("unstable", true, "fcfc00");
 }
 
 /**
@@ -621,7 +634,7 @@ function displayContinuous() {
 
 	var plugin = new JenkinsActivitiPlugin();
 
-	if (plugin.isBuilding() && !plugin.hasError || 30 > oncemore) {
+	if ((plugin.isBuilding() && !plugin.hasError) || 5 > oncemore) {
 		var buildNumber = getBuildNumber();
 
 		assertNotUndefined(buildNumber, "build number is undefined");
@@ -635,10 +648,7 @@ function displayContinuous() {
 		});
 
 	} else {
-		if (35 > oncemore) // prevent out of memory after 1.7976931348623157e+308 sec. ;)
-		{
 			oncemore++;
-		}
 	}
 	setTimeout(displayContinuous, "1000");
 }

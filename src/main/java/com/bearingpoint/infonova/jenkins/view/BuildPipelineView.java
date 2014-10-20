@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletException;
-import javax.swing.JOptionPane;
 
 import jenkins.model.Jenkins;
 

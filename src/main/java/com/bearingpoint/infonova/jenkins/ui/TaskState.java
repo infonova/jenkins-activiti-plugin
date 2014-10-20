@@ -13,7 +13,7 @@ import com.thoughtworks.xstream.annotations.XStreamAlias;
 @XStreamAlias("state")
 public enum TaskState {
 
-	RUNNING, SUCCESS, FAILURE, PENDING;
+	RUNNING, SUCCESS, FAILURE, PENDING, UNSTABLE;
 
 	@Override
 	public String toString() {

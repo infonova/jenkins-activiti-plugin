@@ -13,6 +13,7 @@ import hudson.FilePath.FileCallable;
 import hudson.model.Action;
 import hudson.model.Build;
 import hudson.model.BuildListener;
+import hudson.model.Result;
 import hudson.model.AbstractBuild;
 import hudson.remoting.VirtualChannel;
 
@@ -109,6 +110,12 @@ public class ActivitiProcessExecution {
 					processId, variables);
 
 			ActivitiUtils.waitForProcessFinalization(build, pi);
+			
+			if(ActivitiUtils.hasUnstableExecutions(processId))
+			{
+				build.setResult(Result.UNSTABLE);
+			}
+			
 			log(logger, "BPMN process finished");
 		} catch (JenkinsJobFailedException ex) {
 			log(logger, "delete aborted build BPMN process");
