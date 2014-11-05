@@ -2,14 +2,17 @@ package com.bearingpoint.infonova.jenkins.activitybehavior;
 
 import hudson.maven.MavenModuleSet;
 import hudson.model.Action;
+import hudson.model.EnvironmentList;
 import hudson.model.ParameterValue;
 import hudson.model.SimpleParameterDefinition;
 import hudson.model.TopLevelItem;
+import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BooleanParameterDefinition;
 import hudson.model.BooleanParameterValue;
 import hudson.model.Cause;
 import hudson.model.ChoiceParameterDefinition;
+import hudson.model.FreeStyleProject;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
@@ -19,6 +22,7 @@ import hudson.model.StringParameterValue;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +63,28 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 
 	private Expression jobResultCondition;
 
+	private Map<String, String> masterEnVarsMap;
+	
+	public void initEnvVarsFromMasterJobLocalVar(String jobname, int buildnr)
+	{
+		TopLevelItem tli = Jenkins.getInstance().getItem(jobname);
+		
+		if(tli != null)
+		{
+			if(tli instanceof Project)
+			{
+				Project masterProject = (Project) tli;				
+				AbstractBuild masterBuild = masterProject.getBuildByNumber(buildnr);
+				masterEnVarsMap = masterBuild.getEnvVars();
+			}
+		}
+		
+		if(masterEnVarsMap == null)
+		{
+			masterEnVarsMap = new HashMap<String, String>();
+		}
+	}
+	
 	@Override
 	public void execute(ActivityExecution execution) throws Exception {
 
@@ -73,11 +99,14 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 		logger.info("execution.activity.process.id   : " + pDef.getId());
 		logger.info("execution.activity.process.name : " + pDef.getName());
 
+
+		
 		if (jobName != null) {
 			String jobNameValue = (String) jobName.getValue(execution);
 
 			Jenkins jenkins = Jenkins.getInstance();
 			TopLevelItem item = jenkins.getItem(jobNameValue);
+		
 
 			if (item == null) {
 				logger.error("no jenkins job found");
@@ -85,11 +114,13 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 
 				Project<?, ?> project = (Project<?, ?>) item;
 
+				//the pipeline job
 				final String projectName = (String) activity
 						.getProperty(ActivitiUtils.JOB_NAME_PROPERTY);
 				final int buildNr = (Integer) activity
 						.getProperty(ActivitiUtils.BUILD_NUMBER_PROPERTY);
-
+				initEnvVarsFromMasterJobLocalVar(projectName, buildNr);
+				
 				Cause cause = new WorkflowCause(projectName, buildNr,
 						processDefinitionId, execution);
 				Action action = new ParametersAction(getDefaultParams(project,
@@ -112,7 +143,9 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 						.getProperty(ActivitiUtils.JOB_NAME_PROPERTY);
 				final int buildNr = (Integer) activity
 						.getProperty(ActivitiUtils.BUILD_NUMBER_PROPERTY);
+				initEnvVarsFromMasterJobLocalVar(projectName, buildNr);
 
+				
 				Cause cause = new WorkflowCause(projectName, buildNr,
 						processDefinitionId, execution);
 				Action action = new ParametersAction(getDefaultParams(
@@ -251,7 +284,8 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 
 			keys.add(key);
 		}
-
+		
+		
 		//Environment Variables from Pipeline
 		for (ParameterDefinition def : property.getParameterDefinitions()) {
 
@@ -266,9 +300,14 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 				{
 					varFromActualJob = varFromActualJob.replace('$', ' ').trim();
 					Set<String> variableNames = execution.getVariableNames();
-			
 						if (variableNames.contains(varFromActualJob)) {
 							String variable = (String) execution.getVariable(varFromActualJob);
+							
+							values.remove(new StringParameterValue(def.getName(),variables.get(def.getName())));
+							values.add(new StringParameterValue(def.getName(), variable));
+						} else if(masterEnVarsMap.containsKey(varFromActualJob))
+						{
+							String variable = (String) masterEnVarsMap.get(varFromActualJob);
 							
 							values.remove(new StringParameterValue(def.getName(),variables.get(def.getName())));
 							values.add(new StringParameterValue(def.getName(), variable));
@@ -407,7 +446,6 @@ public class JenkinsActivitiTaskDelegate extends ReceiveTaskActivityBehavior {
 					e.printStackTrace();
 					return;
 				}
-				
 			}
 		},"ActivitiIsJobAbortedInQueueCheck for " +execution.getCurrentActivityName());
 		
